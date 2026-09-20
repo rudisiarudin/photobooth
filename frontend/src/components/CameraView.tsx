@@ -1,5 +1,17 @@
-import React, { useState } from 'react'
-import { VideoOff, RefreshCw, FlipHorizontal, Maximize2, Minimize2, Camera, Video, ChevronDown, Usb } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import {
+  VideoOff,
+  RefreshCw,
+  FlipHorizontal,
+  Maximize2,
+  Minimize2,
+  Camera,
+  Video,
+  ChevronDown,
+  Usb,
+  SwitchCamera,
+  Info,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FILTERS, type FilterKey } from '@/lib/render'
 import type { VideoDevice } from '@/hooks/useCamera'
@@ -25,6 +37,7 @@ interface CameraViewProps {
   videoDevices?: VideoDevice[]
   selectedDeviceId?: string | null
   onSwitchCamera?: (deviceId: string) => void
+  onCycleCamera?: () => void
   onRefreshDevices?: () => void
 }
 
@@ -48,12 +61,37 @@ export const CameraView: React.FC<CameraViewProps> = ({
   videoDevices = [],
   selectedDeviceId,
   onSwitchCamera,
+  onCycleCamera,
   onRefreshDevices,
 }) => {
   const [showDeviceMenu, setShowDeviceMenu] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const currentDevice = videoDevices.find((d) => d.deviceId === selectedDeviceId)
   const hasMultipleDevices = videoDevices.length > 1
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowDeviceMenu(false)
+      }
+    }
+    if (showDeviceMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showDeviceMenu])
+
+  const handleToggleMenu = async () => {
+    if (onRefreshDevices) {
+      onRefreshDevices()
+    }
+    setShowDeviceMenu((prev) => !prev)
+  }
 
   return (
     <div
@@ -92,14 +130,27 @@ export const CameraView: React.FC<CameraViewProps> = ({
               {cameraError || 'Izinkan akses kamera di browser Anda untuk mulai berfoto.'}
             </p>
           </div>
-          <Button
-            size="sm"
-            onClick={onRetryCamera}
-            className="mt-2 gap-2 bg-zinc-100 text-zinc-900 hover:bg-white"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Coba Akses Kamera
-          </Button>
+          <div className="flex items-center gap-2 mt-2">
+            <Button
+              size="sm"
+              onClick={onRetryCamera}
+              className="gap-2 bg-zinc-100 text-zinc-900 hover:bg-white cursor-pointer"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Coba Akses Kamera
+            </Button>
+            {onRefreshDevices && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onRefreshDevices}
+                className="gap-2 border-white/20 text-white hover:bg-white/10 cursor-pointer"
+              >
+                <Usb className="h-4 w-4" />
+                Deteksi Capture Card
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
@@ -146,94 +197,161 @@ export const CameraView: React.FC<CameraViewProps> = ({
           </div>
         ) : (
           /* Camera device selector — shown in standby */
-          <div className="relative pointer-events-auto">
+          <div className="relative pointer-events-auto" ref={menuRef}>
             <button
               type="button"
-              onClick={() => {
-                if (onRefreshDevices) onRefreshDevices()
-                if (hasMultipleDevices || videoDevices.length > 0) setShowDeviceMenu(!showDeviceMenu)
-              }}
-              className="flex items-center gap-2 rounded-full bg-zinc-950/80 backdrop-blur-md border border-white/15 px-3 py-1 text-[11px] font-mono tracking-wide text-zinc-300 hover:bg-zinc-800/90 transition-colors cursor-pointer"
-              title="Pilih Kamera"
+              onClick={handleToggleMenu}
+              className={`flex items-center gap-2 rounded-full backdrop-blur-md border px-3 py-1 text-[11px] font-mono tracking-wide transition-all cursor-pointer shadow-lg ${
+                currentDevice?.isHdmiCapture
+                  ? 'bg-violet-950/80 border-violet-500/40 text-violet-200 hover:bg-violet-900/80'
+                  : 'bg-zinc-950/85 border-white/20 text-zinc-200 hover:bg-zinc-850'
+              }`}
+              title="Klik untuk memilih kamera (Sony A6000 / HDMI / Webcam)"
             >
               {currentDevice?.isHdmiCapture ? (
-                <Usb className="h-3 w-3 text-violet-400 shrink-0" />
+                <Usb className="h-3.5 w-3.5 text-violet-400 shrink-0 animate-pulse" />
               ) : (
                 <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
               )}
-              <span className="max-w-[140px] truncate">
-                {currentDevice ? currentDevice.label : 'STANDBY • LIVE'}
+              <span className="max-w-[150px] truncate font-medium">
+                {currentDevice ? currentDevice.label : 'Pilih Kamera'}
               </span>
-              {(hasMultipleDevices || videoDevices.length === 0) && (
-                <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
-              )}
+              <ChevronDown className="h-3 w-3 opacity-70 shrink-0" />
             </button>
 
             {/* Device dropdown menu */}
-            {showDeviceMenu && videoDevices.length > 0 && (
+            {showDeviceMenu && (
               <div
-                className="absolute top-full mt-2 left-0 min-w-[240px] rounded-xl bg-zinc-900/95 border border-white/10 shadow-2xl backdrop-blur-md overflow-hidden z-50"
-                onMouseLeave={() => setShowDeviceMenu(false)}
+                className="absolute top-full mt-2 left-0 min-w-[280px] max-w-[340px] rounded-xl bg-zinc-950/95 border border-white/20 shadow-2xl backdrop-blur-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150"
               >
-                <div className="px-3 py-2 border-b border-white/10">
-                  <p className="text-[10px] font-mono tracking-wider text-zinc-500 uppercase">Pilih Kamera Input</p>
+                <div className="px-3.5 py-2.5 border-b border-white/10 flex items-center justify-between bg-white/[0.03]">
+                  <p className="text-[11px] font-mono font-bold tracking-wider text-zinc-300 uppercase">
+                    Pilih Sumber Kamera
+                  </p>
+                  <span className="text-[10px] font-mono text-zinc-500">
+                    {videoDevices.length} terdeteksi
+                  </span>
                 </div>
-                {videoDevices.map((device) => (
+
+                <div className="max-h-60 overflow-y-auto divide-y divide-white/5">
+                  {videoDevices.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-zinc-400 space-y-2">
+                      <p>Memindai perangkat kamera...</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onRefreshDevices && onRefreshDevices()}
+                        className="text-xs h-7 gap-1.5 border-white/20 text-zinc-200"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        Pindai Ulang
+                      </Button>
+                    </div>
+                  ) : (
+                    videoDevices.map((device, idx) => (
+                      <button
+                        key={device.deviceId || idx}
+                        type="button"
+                        onClick={() => {
+                          if (onSwitchCamera) onSwitchCamera(device.deviceId)
+                          setShowDeviceMenu(false)
+                        }}
+                        className={`w-full flex items-center gap-3 px-3.5 py-3 text-left font-mono transition-colors hover:bg-white/10 cursor-pointer ${
+                          device.deviceId === selectedDeviceId
+                            ? 'bg-violet-500/15 text-white'
+                            : 'text-zinc-300'
+                        }`}
+                      >
+                        {device.isHdmiCapture ? (
+                          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-violet-500/25 border border-violet-400/40 shrink-0 text-violet-300">
+                            <Usb className="h-4 w-4" />
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 shrink-0 text-emerald-400">
+                            <Video className="h-4 w-4" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate text-xs font-semibold leading-snug">
+                            {device.label || `Camera ${idx + 1}`}
+                          </p>
+                          <p className="text-[10px] text-zinc-400 leading-tight mt-0.5">
+                            {device.isHdmiCapture
+                              ? '📹 HDMI Capture Card (Sony A6000)'
+                              : '💻 Kamera Tablet / Internal'}
+                          </p>
+                        </div>
+                        {device.deviceId === selectedDeviceId && (
+                          <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+
+                {/* Dropdown footer with refresh & tips */}
+                <div className="px-3.5 py-2 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-[10px] text-zinc-400 font-mono">
                   <button
-                    key={device.deviceId}
                     type="button"
                     onClick={() => {
-                      if (onSwitchCamera) onSwitchCamera(device.deviceId)
-                      setShowDeviceMenu(false)
+                      if (onRefreshDevices) onRefreshDevices()
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-xs font-mono transition-colors hover:bg-zinc-800/80 cursor-pointer ${
-                      device.deviceId === selectedDeviceId ? 'text-white bg-zinc-800/60' : 'text-zinc-400'
-                    }`}
-                  >
-                    {device.isHdmiCapture ? (
-                      <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-violet-500/20 border border-violet-500/30 shrink-0">
-                        <Usb className="h-3.5 w-3.5 text-violet-400" />
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 shrink-0">
-                        <Video className="h-3.5 w-3.5 text-emerald-400" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-xs font-semibold leading-tight">
-                        {device.label}
-                      </p>
-                      <p className="text-[10px] text-zinc-500 leading-tight mt-0.5">
-                        {device.isHdmiCapture ? '📹 HDMI Capture Card' : '💻 Built-in / USB Webcam'}
-                      </p>
-                    </div>
-                    {device.deviceId === selectedDeviceId && (
-                      <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
-                    )}
-                  </button>
-                ))}
-                <div className="px-3 py-2 border-t border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => { if (onRefreshDevices) onRefreshDevices(); setShowDeviceMenu(false) }}
-                    className="flex items-center gap-2 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer"
                   >
                     <RefreshCw className="h-3 w-3" />
-                    Refresh Daftar Kamera
+                    <span>Scan Ulang</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowHelp((prev) => !prev)}
+                    className="flex items-center gap-1 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
+                  >
+                    <Info className="h-3 w-3" />
+                    <span>Tips HDMI</span>
                   </button>
                 </div>
+
+                {/* Expandable Help Inside Dropdown */}
+                {showHelp && (
+                  <div className="p-3 bg-amber-950/40 border-t border-amber-500/30 text-[10px] text-amber-200/90 space-y-1.5">
+                    <p className="font-bold text-amber-300">Jika Sony A6000 belum terbaca:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-zinc-300">
+                      <li>
+                        <strong>Tutup total</strong> aplikasi video capture lain di tablet (misal OTG View / USB Camera) agar USB port tidak terkunci.
+                      </li>
+                      <li>Cabut dan colok ulang koneksi HDMI Capture Card.</li>
+                      <li>Nyalakan Sony A6000 dan pastikan mode Movie / Photo aktif.</li>
+                      <li>Klik <em>Scan Ulang</em> di atas.</li>
+                    </ol>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
 
-        <div className="flex items-center gap-2 pointer-events-auto">
+        {/* Top Right Action Buttons */}
+        <div className="flex items-center gap-1.5 pointer-events-auto">
+          {/* Quick cycle camera button */}
+          {hasMultipleDevices && onCycleCamera && !isSessionRunning && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onCycleCamera}
+              title="Ganti ke Kamera Berikutnya (Depan / Belakang / HDMI)"
+              className="h-8 w-8 rounded-lg border-white/15 bg-zinc-950/80 backdrop-blur-md text-white hover:bg-zinc-800 hover:text-white cursor-pointer"
+            >
+              <SwitchCamera className="h-4 w-4" />
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="icon"
             onClick={onToggleMirror}
             title={isMirrored ? 'Mode Normal' : 'Mode Mirror'}
-            className="h-8 w-8 rounded-lg border-white/15 bg-zinc-950/80 backdrop-blur-md text-white hover:bg-zinc-800 hover:text-white"
+            className="h-8 w-8 rounded-lg border-white/15 bg-zinc-950/80 backdrop-blur-md text-white hover:bg-zinc-800 hover:text-white cursor-pointer"
           >
             <FlipHorizontal className="h-4 w-4" />
           </Button>
@@ -301,7 +419,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
       {/* Bottom Telemetry HUD */}
       <div className="pointer-events-none absolute bottom-3 inset-x-5 flex items-center justify-between text-[10px] font-mono text-white/50 z-10">
         <span className="hidden sm:inline">
-          {currentDevice?.isHdmiCapture ? '📹 HDMI CAPTURE' : '35MM • F/2.0 • ISO 200'}
+          {currentDevice?.isHdmiCapture
+            ? '📹 SONY A6000 / HDMI CAPTURE ACTIVE'
+            : '35MM • F/2.0 • ISO 200'}
         </span>
         <span className="tracking-widest hidden sm:inline">K-PHOTO LAB 2026</span>
       </div>

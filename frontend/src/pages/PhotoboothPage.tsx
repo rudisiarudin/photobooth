@@ -9,7 +9,7 @@ import { ShotTrack } from '@/components/ShotTrack'
 import { EventSettingsDialog } from '@/components/EventSettingsDialog'
 import { ResultModal } from '@/components/ResultModal'
 import { Button } from '@/components/ui/button'
-import { Camera, RotateCcw, Layers, Maximize2, Minimize2 } from 'lucide-react'
+import { Camera, RotateCcw, Layers, Maximize2, Minimize2, SwitchCamera, Usb, RefreshCw } from 'lucide-react'
 
 interface PhotoboothPageProps {
   onOpenSettings: boolean
@@ -35,6 +35,7 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
     videoDevices,
     selectedDeviceId,
     switchCamera,
+    cycleToNextCamera,
     refreshDevices,
   } = useCamera()
 
@@ -273,6 +274,7 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
           videoDevices={videoDevices}
           selectedDeviceId={selectedDeviceId}
           onSwitchCamera={switchCamera}
+          onCycleCamera={cycleToNextCamera}
           onRefreshDevices={refreshDevices}
         />
       </div>
@@ -285,6 +287,72 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
             : 'w-full max-w-5xl mx-auto px-4 pb-6 space-y-3'
         }
       >
+        {/* ---- Camera Source & Device Bar ---- */}
+        <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm px-4 py-2.5 shadow-sm flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className={`flex items-center justify-center h-8 w-8 rounded-xl border shrink-0 ${
+                videoDevices.find((d) => d.deviceId === selectedDeviceId)?.isHdmiCapture
+                  ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
+                  : 'bg-primary/10 border-primary/20 text-primary'
+              }`}
+            >
+              {videoDevices.find((d) => d.deviceId === selectedDeviceId)?.isHdmiCapture ? (
+                <Usb className="h-4 w-4" />
+              ) : (
+                <Camera className="h-4 w-4" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+                  Kamera:
+                </span>
+                {videoDevices.find((d) => d.deviceId === selectedDeviceId)?.isHdmiCapture ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-violet-300 bg-violet-500/20 border border-violet-500/40 px-2 py-0.5 rounded-full">
+                    <span className="h-1.5 w-1.5 rounded-full bg-violet-400 animate-ping" />
+                    HDMI / Sony A6000 Aktif
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                    Kamera Internal ({videoDevices.length} Terdeteksi)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs font-semibold truncate text-foreground mt-0.5">
+                {videoDevices.find((d) => d.deviceId === selectedDeviceId)?.label || 'Mendeteksi kamera...'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {videoDevices.length > 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={cycleToNextCamera}
+                disabled={isCapturing}
+                className="h-8 px-3 text-xs font-mono gap-1.5 rounded-xl border-border/70 hover:bg-muted/60 cursor-pointer"
+                title="Ganti ke kamera berikutnya (Depan / Belakang / HDMI Sony)"
+              >
+                <SwitchCamera className="h-3.5 w-3.5" />
+                <span>Ganti Kamera</span>
+              </Button>
+            )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => refreshDevices()}
+              disabled={isCapturing}
+              className="h-8 px-2.5 text-xs font-mono gap-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer"
+              title="Pindai ulang koneksi USB / HDMI Capture Card"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Pindai Ulang</span>
+            </Button>
+          </div>
+        </div>
 
         {/* ---- Filter Bar ---- */}
         <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm px-4 py-3 shadow-sm">
