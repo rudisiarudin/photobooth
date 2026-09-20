@@ -276,6 +276,7 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
           onSwitchCamera={switchCamera}
           onCycleCamera={cycleToNextCamera}
           onRefreshDevices={refreshDevices}
+          isExternalCamera={videoDevices.find((d) => d.deviceId === selectedDeviceId)?.isHdmiCapture ?? false}
         />
       </div>
 

@@ -39,6 +39,8 @@ interface CameraViewProps {
   onSwitchCamera?: (deviceId: string) => void
   onCycleCamera?: () => void
   onRefreshDevices?: () => void
+  // Whether current feed is from an external/HDMI capture card
+  isExternalCamera?: boolean
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -63,6 +65,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onSwitchCamera,
   onCycleCamera,
   onRefreshDevices,
+  isExternalCamera = false,
 }) => {
   const [showDeviceMenu, setShowDeviceMenu] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
@@ -102,19 +105,29 @@ export const CameraView: React.FC<CameraViewProps> = ({
       }`}
       style={{ aspectRatio: '4/3' }}
     >
-      {/* Video element - Always sharp, no blur during capture */}
+      {/* Video element - always sharp, no blur. Use object-contain for external/HDMI cameras
+           so the full 16:9 frame is visible; use object-cover for built-in webcam */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted
-        className={`h-full w-full object-cover transition-transform duration-300 ${
+        className={`h-full w-full transition-transform duration-300 ${
+          isExternalCamera ? 'object-contain' : 'object-cover'
+        } ${
           isMirrored ? '-scale-x-100' : ''
         }`}
         style={{
           filter: FILTERS[activeFilter] !== 'none' ? FILTERS[activeFilter] : undefined,
         }}
       />
+
+      {/* External camera letterbox label */}
+      {isExternalCamera && cameraActive && (
+        <div className="pointer-events-none absolute top-1/2 left-0 right-0 flex justify-center z-5">
+          {/* Subtle side bars indicator – purely decorative */}
+        </div>
+      )}
 
       {/* Camera inactive / error state */}
       {(!cameraActive || cameraError) && (

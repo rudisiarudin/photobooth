@@ -295,7 +295,8 @@ export function useCamera() {
   }, [])
 
   // -----------------------------------------------------------------------
-  // captureFrame — crop to 4:3 matching viewfinder
+  // captureFrame — capture full native resolution, no forced crop
+  // The render system (drawCoverImage) handles fitting/cropping
   // -----------------------------------------------------------------------
   const captureFrame = useCallback((): HTMLCanvasElement | null => {
     const video = videoRef.current
@@ -304,31 +305,15 @@ export function useCamera() {
     const vw = video.videoWidth || 1280
     const vh = video.videoHeight || 720
 
-    const targetAspect = 4 / 3
-    const videoAspect = vw / vh
-
-    let sx = 0,
-      sy = 0,
-      sw = vw,
-      sh = vh
-
-    if (videoAspect > targetAspect) {
-      sw = Math.round(vh * targetAspect)
-      sx = Math.round((vw - sw) / 2)
-    } else {
-      sh = Math.round(vw / targetAspect)
-      sy = Math.round((vh - sh) / 2)
-    }
-
     const canvas = document.createElement('canvas')
-    canvas.width = sw
-    canvas.height = sh
+    canvas.width = vw
+    canvas.height = vh
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
 
     if (isMirrored) {
-      ctx.translate(sw, 0)
+      ctx.translate(vw, 0)
       ctx.scale(-1, 1)
     }
 
@@ -337,7 +322,7 @@ export function useCamera() {
       ctx.filter = filterCSS
     }
 
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh)
+    ctx.drawImage(video, 0, 0, vw, vh)
     return canvas
   }, [isMirrored, activeFilter])
 
