@@ -137,6 +137,60 @@ function drawFooter(
   ctx.fillText(`• ${getDateLabel(config)} •`, canvasW / 2, footerY + (compact ? 136 : 160))
 }
 
+/**
+ * Draws an image/canvas onto ctx at [destX, destY, destW, destH] using center-crop (object-fit: cover).
+ * This completely prevents any image distortion, squishing, or stretching ("tidak penyok").
+ */
+export function drawCoverImage(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLCanvasElement | HTMLImageElement | HTMLVideoElement,
+  destX: number,
+  destY: number,
+  destW: number,
+  destH: number
+) {
+  const srcW =
+    (img as HTMLCanvasElement).width ||
+    (img as HTMLVideoElement).videoWidth ||
+    (img as HTMLImageElement).naturalWidth ||
+    destW
+  const srcH =
+    (img as HTMLCanvasElement).height ||
+    (img as HTMLVideoElement).videoHeight ||
+    (img as HTMLImageElement).naturalHeight ||
+    destH
+
+  const srcAspect = srcW / srcH
+  const destAspect = destW / destH
+
+  let cropW = srcW
+  let cropH = srcH
+  let cropX = 0
+  let cropY = 0
+
+  if (srcAspect > destAspect) {
+    // Source is wider than destination: crop sides evenly
+    cropW = Math.round(srcH * destAspect)
+    cropX = Math.round((srcW - cropW) / 2)
+  } else {
+    // Source is taller than destination: crop top & bottom evenly
+    cropH = Math.round(srcW / destAspect)
+    cropY = Math.round((srcH - cropH) / 2)
+  }
+
+  ctx.drawImage(
+    img,
+    cropX,
+    cropY,
+    cropW,
+    cropH,
+    destX,
+    destY,
+    destW,
+    destH
+  )
+}
+
 export function renderStripPhotostrip(
   frames: HTMLCanvasElement[],
   themeKey: ThemeKey,
@@ -184,7 +238,7 @@ export function renderStripPhotostrip(
     const y = topY + idx * (photoH + gapY)
     ctx.fillStyle = theme.border
     ctx.fillRect(padX - 6, y - 6, photoW + 12, photoH + 12)
-    ctx.drawImage(frame, padX, y, photoW, photoH)
+    drawCoverImage(ctx, frame, padX, y, photoW, photoH)
   })
 
   const footerY = topY + count * (photoH + gapY) + 32
@@ -227,7 +281,7 @@ export function renderGridPhotostrip(
     const y = padY + row * (photoH + gap)
     ctx.fillStyle = theme.border
     ctx.fillRect(x - 5, y - 5, photoW + 10, photoH + 10)
-    ctx.drawImage(frame, x, y, photoW, photoH)
+    drawCoverImage(ctx, frame, x, y, photoW, photoH)
   })
 
   const footerY = padY + rows * (photoH + gap) + 32
@@ -262,7 +316,7 @@ export function renderPolaroidPhotostrip(
   if (frames[0]) {
     ctx.fillStyle = theme.border
     ctx.fillRect(padX - 6, padTop - 6, photoW + 12, photoH + 12)
-    ctx.drawImage(frames[0], padX, padTop, photoW, photoH)
+    drawCoverImage(ctx, frames[0], padX, padTop, photoW, photoH)
   }
 
   const footerY = padTop + photoH + 56

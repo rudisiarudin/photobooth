@@ -6,6 +6,7 @@ import {
   LAYOUT_INFO,
   renderPhotostripByLayout,
 } from '@/lib/render'
+import { soundEffects } from '@/lib/sound'
 
 export interface StickerItem {
   id: string
@@ -141,18 +142,20 @@ export function usePhotobooth() {
         if (cancelSessionRef.current) break
         setCurrentPoseIndex(i)
 
-        // 3-second countdown
+        // 3-second countdown with audio beeps
         for (let cd = 3; cd >= 1; cd--) {
           if (cancelSessionRef.current) break
           setCountdownNumber(cd)
+          soundEffects.playCountdownBeep(cd)
           await new Promise((r) => setTimeout(r, 1000))
         }
 
         if (cancelSessionRef.current) break
 
-        // Flash and capture
+        // Flash, shutter snap sound, and capture
         setCountdownNumber(null)
         flashFn()
+        soundEffects.playShutterSound()
         const frame = captureFn()
         if (frame) {
           capturedList.push(frame)
@@ -199,14 +202,16 @@ export function usePhotobooth() {
       setRetakingPoseIndex(poseIndex)
       setCurrentPoseIndex(poseIndex)
 
-      // 3-second countdown
+      // 3-second countdown with audio beeps
       for (let cd = 3; cd >= 1; cd--) {
         setCountdownNumber(cd)
+        soundEffects.playCountdownBeep(cd)
         await new Promise((r) => setTimeout(r, 1000))
       }
 
       setCountdownNumber(null)
       flashFn()
+      soundEffects.playShutterSound()
       const newFrame = captureFn()
 
       if (newFrame) {

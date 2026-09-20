@@ -57,18 +57,38 @@ export function useCamera() {
     const video = videoRef.current
     if (!video || video.readyState < 2) return null
 
-    const canvas = document.createElement('canvas')
     const vw = video.videoWidth || 1280
     const vh = video.videoHeight || 720
-    canvas.width = vw
-    canvas.height = vh
+
+    // Match the 4:3 aspect ratio of the live camera viewfinder
+    const targetAspect = 4 / 3
+    const videoAspect = vw / vh
+
+    let sx = 0
+    let sy = 0
+    let sw = vw
+    let sh = vh
+
+    if (videoAspect > targetAspect) {
+      // Video is wider than 4:3 (e.g. 16:9): crop sides evenly to match viewfinder
+      sw = Math.round(vh * targetAspect)
+      sx = Math.round((vw - sw) / 2)
+    } else {
+      // Video is taller than 4:3: crop top/bottom evenly
+      sh = Math.round(vw / targetAspect)
+      sy = Math.round((vh - sh) / 2)
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = sw
+    canvas.height = sh
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
 
     // Apply mirror if enabled
     if (isMirrored) {
-      ctx.translate(vw, 0)
+      ctx.translate(sw, 0)
       ctx.scale(-1, 1)
     }
 
@@ -78,7 +98,7 @@ export function useCamera() {
       ctx.filter = filterCSS
     }
 
-    ctx.drawImage(video, 0, 0, vw, vh)
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh)
     return canvas
   }, [isMirrored, activeFilter])
 
