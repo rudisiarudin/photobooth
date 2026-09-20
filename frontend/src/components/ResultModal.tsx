@@ -36,20 +36,27 @@ interface ResultModalProps {
   isGeneratingGif?: boolean
   currentTheme: ThemeKey
   onChangeTheme: (theme: ThemeKey) => void
-  onSaveToGallery: () => Promise<{ name: string; url: string } | null>
-  savedInfo: { name: string; url: string } | null
+  onSaveToGallery: () => Promise<{ name: string; url: string; directUrl?: string } | null>
+  savedInfo: { name: string; url: string; directUrl?: string } | null
   isSaving: boolean
   onNewSession: () => void
   stickers: StickerItem[]
-  onAddSticker: (emoji: string) => void
+  onAddSticker: (emoji: string, x?: number, y?: number) => void
   onClearStickers: () => void
   thumbnails?: string[]
   onRetakePose?: (index: number) => void
 }
 
-const STICKER_EMOJIS = ['✨', '🌸', '🎀', '🧸', '🤍', '💫', '🍒', '🌙', '🍓', '💌', '🎈', '🐱', '🌈', '🎭', '💎', '🔮', '🦋', '🌺']
+const STICKER_EMOJIS = [
+  '✨', '🌸', '🎀', '🧸', '🤍', '💫',
+  '🍒', '🌙', '🍓', '💌', '🎈', '🐱',
+  '🌈', '🎭', '💎', '🔮', '🦋', '🌺'
+]
 
-const THEME_SWATCHES: ThemeKey[] = ['dark', 'cream', 'pink', 'white', 'lavender', 'sage', 'terracotta', 'sky', 'cyber', 'midnight']
+const THEME_SWATCHES: ThemeKey[] = [
+  'dark', 'cream', 'pink', 'white', 'lavender',
+  'sage', 'terracotta', 'sky', 'cyber', 'midnight'
+]
 
 export const ResultModal: React.FC<ResultModalProps> = ({
   open,
@@ -61,7 +68,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
   onChangeTheme,
   onSaveToGallery,
   savedInfo,
-  isSaving,
+  isSaving: _isSaving,
   onNewSession,
   stickers,
   onAddSticker,
@@ -71,11 +78,11 @@ export const ResultModal: React.FC<ResultModalProps> = ({
 }) => {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [copied, setCopied] = useState<boolean>(false)
-  const [savedSuccess, setSavedSuccess] = useState<boolean>(false)
   const [previewTab, setPreviewTab] = useState<'strip' | 'gif'>('strip')
+  const [selectedSticker, setSelectedSticker] = useState<string | null>(null)
   const imageContainerRef = useRef<HTMLDivElement | null>(null)
 
-  // Fire confetti on open
+  // Fire confetti on open & reset state
   useEffect(() => {
     if (open) {
       confetti({
@@ -84,42 +91,40 @@ export const ResultModal: React.FC<ResultModalProps> = ({
         origin: { y: 0.55 },
         colors: ['#f43f5e', '#a855f7', '#3b82f6', '#10b981', '#f59e0b'],
       })
-      // Auto save to gallery
       handleSave()
       setPreviewTab('strip')
+      setSelectedSticker(null)
     } else {
-      setSavedSuccess(false)
+      setSelectedSticker(null)
     }
   }, [open])
 
-  // Generate QR only when savedInfo has a real server file path (not a base64 data URL)
+  // Always generate QR Code for the capture
   useEffect(() => {
     const generateQr = async () => {
-      // savedInfo.url is a real server path like /captures/photo-xxx.jpg when the backend is running,
-      // but is a long base64 data URL when offline (Vercel/static). Don't generate QR for data URLs.
-      const isServerPath = savedInfo?.url && savedInfo.url.startsWith('/captures/')
-      if (!isServerPath) {
-        setQrDataUrl(null)
-        return
-      }
+      // Prioritize direct LAN URL for phones on the same network, then standard URL, then app origin
+      const targetUrl =
+        savedInfo?.directUrl ||
+        (savedInfo?.url
+          ? savedInfo.url.startsWith('http')
+            ? savedInfo.url
+            : `${window.location.origin}${savedInfo.url}`
+          : window.location.href)
 
-      const targetUrl = `${window.location.origin}${savedInfo!.url}`
       try {
         const qr = await QRCode.toDataURL(targetUrl, {
-          width: 180,
+          width: 220,
           margin: 1,
           color: {
-            dark: '#18181b',
+            dark: '#09090b',
             light: '#ffffff',
           },
         })
         setQrDataUrl(qr)
       } catch (err) {
         console.error('QR generation error:', err)
-        setQrDataUrl(null)
       }
     }
-
 
     if (open) {
       generateQr()
@@ -127,27 +132,73 @@ export const ResultModal: React.FC<ResultModalProps> = ({
   }, [savedInfo, open])
 
   const handleSave = async () => {
-    const res = await onSaveToGallery()
-    if (res) {
-      setSavedSuccess(true)
-    }
+    await onSaveToGallery()
   }
 
+  // Robust download handler using Blobs to prevent browser data-URL size limits
   const handleDownload = () => {
     const url = previewTab === 'gif' && resultGifUrl ? resultGifUrl : resultDataUrl
     if (!url) return
-    const a = document.createElement('a')
-    a.href = url
-    a.download = previewTab === 'gif' ? `photobooth-${Date.now()}.gif` : `photobooth-${Date.now()}.jpg`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+
+    const filename =
+      previewTab === 'gif' ? `photobooth-${Date.now()}.gif` : `photobooth-${Date.now()}.jpg`
+
+    try {
+      if (url.startsWith('data:')) {
+        // Convert data URL to Blob for reliable large file download
+        const arr = url.split(',')
+        const mimeMatch = arr[0].match(/:(.*?);/)
+        const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+        const bstr = atob(arr[1])
+        let n = bstr.length
+        const u8arr = new Uint8Array(n)
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n)
+        }
+        const blob = new Blob([u8arr], { type: mime })
+        const blobUrl = URL.createObjectURL(blob)
+
+        const a = document.createElement('a')
+        a.style.display = 'none'
+        a.href = blobUrl
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+
+        setTimeout(() => {
+          document.body.removeChild(a)
+          URL.revokeObjectURL(blobUrl)
+        }, 3000)
+      } else {
+        const a = document.createElement('a')
+        a.style.display = 'none'
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        setTimeout(() => document.body.removeChild(a), 1000)
+      }
+    } catch (err) {
+      console.error('Download error:', err)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.target = '_blank'
+      document.body.appendChild(a)
+      a.click()
+      setTimeout(() => document.body.removeChild(a), 500)
+    }
   }
 
   const handleCopyLink = () => {
-    if (!savedInfo?.url || !savedInfo.url.startsWith('/captures/')) return
-    const fullUrl = `${window.location.origin}${savedInfo.url}`
-    navigator.clipboard.writeText(fullUrl)
+    const targetUrl =
+      savedInfo?.directUrl ||
+      (savedInfo?.url
+        ? savedInfo.url.startsWith('http')
+          ? savedInfo.url
+          : `${window.location.origin}${savedInfo.url}`
+        : window.location.href)
+    navigator.clipboard.writeText(targetUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -163,19 +214,8 @@ export const ResultModal: React.FC<ResultModalProps> = ({
           <title>Cetak Photostrip</title>
           <style>
             @page { margin: 0; size: auto; }
-            body {
-              margin: 0;
-              padding: 0;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              background: #fff;
-            }
-            img {
-              max-width: 100vw;
-              max-height: 100vh;
-              object-fit: contain;
-            }
+            body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #fff; }
+            img { max-width: 100%; max-height: 100vh; object-fit: contain; }
           </style>
         </head>
         <body>
@@ -186,9 +226,19 @@ export const ResultModal: React.FC<ResultModalProps> = ({
     printWindow.document.close()
   }
 
+  // Interactive tap-to-place sticker handler
+  const handlePlaceSticker = (clientX: number, clientY: number, target: HTMLElement) => {
+    if (!selectedSticker) return
+    const rect = target.getBoundingClientRect()
+    const x = Math.max(5, Math.min(95, Math.round(((clientX - rect.left) / rect.width) * 100)))
+    const y = Math.max(5, Math.min(95, Math.round(((clientY - rect.top) / rect.height) * 100)))
+    onAddSticker(selectedSticker, x, y)
+    setSelectedSticker(null)
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto bg-zinc-950 border-zinc-800 text-zinc-100 p-0">
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto bg-zinc-950 border-zinc-800 text-zinc-100 p-0 z-50">
         {/* Header */}
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-zinc-800/80">
           <div className="flex items-center justify-between">
@@ -207,7 +257,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
             </div>
             <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-0.5 text-[11px] font-mono font-medium text-emerald-400">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              <span>SIAP CETAK</span>
+              <span>SIAP CETAK & UNDUH</span>
             </div>
           </div>
         </DialogHeader>
@@ -218,8 +268,11 @@ export const ResultModal: React.FC<ResultModalProps> = ({
             {/* Tab switcher */}
             <div className="flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-900/60 p-1 mb-3 self-stretch">
               <button
-                onClick={() => setPreviewTab('strip')}
-                className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                onClick={() => {
+                  setPreviewTab('strip')
+                  setSelectedSticker(null)
+                }}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                   previewTab === 'strip'
                     ? 'bg-zinc-100 text-zinc-950 shadow-sm'
                     : 'text-zinc-400 hover:text-zinc-200'
@@ -229,8 +282,11 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                 Strip Photo
               </button>
               <button
-                onClick={() => setPreviewTab('gif')}
-                className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                onClick={() => {
+                  setPreviewTab('gif')
+                  setSelectedSticker(null)
+                }}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                   previewTab === 'gif'
                     ? 'bg-zinc-100 text-zinc-950 shadow-sm'
                     : 'text-zinc-400 hover:text-zinc-200'
@@ -244,6 +300,23 @@ export const ResultModal: React.FC<ResultModalProps> = ({
               </button>
             </div>
 
+            {/* Sticker Placement Banner */}
+            {selectedSticker && previewTab === 'strip' && (
+              <div className="mb-2 w-full flex items-center justify-between gap-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 px-3 py-1.5 text-xs text-emerald-300 animate-pulse">
+                <span className="font-semibold flex items-center gap-1.5">
+                  <span className="text-base">{selectedSticker}</span>
+                  Ketuk foto pada posisi yang kamu inginkan!
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSticker(null)}
+                  className="text-[11px] underline hover:text-white cursor-pointer ml-auto shrink-0"
+                >
+                  Batal
+                </button>
+              </div>
+            )}
+
             {/* Preview area */}
             <div
               ref={imageContainerRef}
@@ -255,7 +328,21 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                   <img
                     src={resultDataUrl}
                     alt="Hasil Photobooth"
-                    className="max-h-[52vh] w-auto rounded-lg object-contain"
+                    onClick={(e) => {
+                      if (selectedSticker) {
+                        handlePlaceSticker(e.clientX, e.clientY, e.currentTarget)
+                      }
+                    }}
+                    onTouchStart={(e) => {
+                      if (selectedSticker && e.touches.length > 0) {
+                        handlePlaceSticker(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget)
+                      }
+                    }}
+                    className={`max-h-[52vh] w-auto rounded-lg object-contain transition-all select-none ${
+                      selectedSticker
+                        ? 'cursor-crosshair ring-4 ring-emerald-400/80 ring-offset-2 ring-offset-black scale-[0.99]'
+                        : ''
+                    }`}
                   />
                 ) : (
                   <div className="flex h-72 w-48 items-center justify-center text-zinc-600 font-mono text-xs">
@@ -302,7 +389,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                     key={t}
                     onClick={() => onChangeTheme(t)}
                     title={THEMES[t].name}
-                    className={`h-6 rounded-md border transition-all ${
+                    className={`h-6 rounded-md border transition-all cursor-pointer ${
                       currentTheme === t
                         ? 'ring-2 ring-white/40 scale-110 shadow-md'
                         : 'hover:scale-105 border-zinc-700'
@@ -315,7 +402,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
           </div>
 
           {/* Right Action Column */}
-          <div className="md:col-span-7 flex flex-col gap-4 p-4">
+          <div className="md:col-span-7 flex flex-col gap-3.5 p-4">
             {/* Pose Thumbnails + Retake */}
             {thumbnails.length > 0 && (
               <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
@@ -353,19 +440,24 @@ export const ResultModal: React.FC<ResultModalProps> = ({
               </div>
             )}
 
-            {/* Sticker Section */}
+            {/* Sticker Section — Interactive Placement */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-mono font-semibold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <Smile className="h-3 w-3" />
-                  Tambah Stiker
-                </label>
+                <div>
+                  <label className="text-[10px] font-mono font-semibold text-zinc-300 uppercase tracking-widest flex items-center gap-1.5">
+                    <Smile className="h-3 w-3 text-amber-400" />
+                    Tambah Stiker
+                  </label>
+                  <p className="text-[10px] text-zinc-400">
+                    Pilih stiker lalu ketuk foto di posisi yang kamu inginkan:
+                  </p>
+                </div>
                 {stickers.length > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={onClearStickers}
-                    className="h-6 px-2 text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 gap-1"
+                    className="h-6 px-2 text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 gap-1 cursor-pointer"
                   >
                     <Trash2 className="h-3 w-3" />
                     Hapus ({stickers.length})
@@ -378,68 +470,84 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                   <button
                     key={emoji}
                     type="button"
-                    onClick={() => onAddSticker(emoji)}
-                    className="h-9 w-9 rounded-lg bg-zinc-800/80 hover:bg-zinc-700/80 text-lg flex items-center justify-center transition-transform hover:scale-115 active:scale-95 cursor-pointer border border-zinc-700/40 shadow-sm"
+                    onClick={() => {
+                      if (selectedSticker === emoji) {
+                        setSelectedSticker(null)
+                      } else {
+                        setSelectedSticker(emoji)
+                      }
+                    }}
+                    title={selectedSticker === emoji ? 'Batalkan pilihan' : 'Pilih dan ketuk foto untuk menempel'}
+                    className={`h-9 w-9 rounded-lg text-lg flex items-center justify-center transition-all cursor-pointer border shadow-sm ${
+                      selectedSticker === emoji
+                        ? 'bg-emerald-500/30 border-emerald-400 ring-2 ring-emerald-400 scale-110 shadow-lg'
+                        : 'bg-zinc-800/80 hover:bg-zinc-700/80 border-zinc-700/40 hover:scale-110 active:scale-95'
+                    }`}
                   >
                     {emoji}
                   </button>
                 ))}
               </div>
-            </div>
 
-            {/* QR Code Section */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 flex items-center gap-3">
-              {/* Only show QR if server returned a real file path */}
-              {qrDataUrl ? (
-                <>
-                  <div className="flex-shrink-0 bg-white p-1.5 rounded-xl shadow-md">
-                    <img src={qrDataUrl} alt="Scan QR Code" className="h-20 w-20 object-contain" />
-                  </div>
-                  <div className="space-y-1 text-left flex-1">
-                    <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-wider font-mono">
-                      Download ke HP
-                    </h4>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Scan QR untuk unduh foto langsung ke smartphone.
-                    </p>
-                    {savedInfo && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleCopyLink}
-                        className="h-6 px-2 text-[10px] text-zinc-300 hover:text-white hover:bg-zinc-800 gap-1 mt-1"
-                      >
-                        {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Share2 className="h-3 w-3" />}
-                        <span>{copied ? 'Link Tersalin!' : 'Salin Link Foto'}</span>
-                      </Button>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex-shrink-0 flex h-20 w-20 items-center justify-center rounded-xl bg-zinc-800/80 border border-zinc-700/50">
-                    <Download className="h-7 w-7 text-zinc-500" />
-                  </div>
-                  <div className="space-y-1.5 text-left flex-1">
-                    <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-wider font-mono">
-                      Simpan ke Perangkat
-                    </h4>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Klik tombol Download di bawah untuk menyimpan foto ke perangkat ini.
-                    </p>
-                    <button
-                      onClick={handleDownload}
-                      className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 underline underline-offset-2"
-                    >
-                      Download sekarang →
-                    </button>
-                  </div>
-                </>
+              {selectedSticker && (
+                <div className="flex items-center justify-between pt-1 border-t border-zinc-800/80 text-[11px] text-zinc-300">
+                  <span className="flex items-center gap-1.5">
+                    Stiker aktif: <b className="text-base">{selectedSticker}</b>
+                    <span className="text-zinc-400">(Ketuk foto di sebelah kiri)</span>
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      onAddSticker(selectedSticker, 50, 50)
+                      setSelectedSticker(null)
+                    }}
+                    className="h-6 text-[10px] border-zinc-700 text-zinc-300 hover:text-white cursor-pointer"
+                  >
+                    Tempel di Tengah
+                  </Button>
+                </div>
               )}
             </div>
 
+            {/* QR Code Section — Always Visible */}
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3.5 flex items-center gap-3.5 shadow-sm">
+              <div className="flex-shrink-0 bg-white p-1.5 rounded-xl shadow-lg border border-zinc-200">
+                {qrDataUrl ? (
+                  <img src={qrDataUrl} alt="Scan QR Code" className="h-20 w-20 object-contain" />
+                ) : (
+                  <div className="h-20 w-20 flex flex-col items-center justify-center text-[10px] text-zinc-500 font-mono">
+                    <Loader2 className="h-5 w-5 animate-spin mb-1 text-zinc-600" />
+                    <span>Loading...</span>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1 text-left flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <h4 className="text-xs font-bold text-zinc-100 uppercase tracking-wider font-mono">
+                    SCAN QR CODE HP
+                  </h4>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-snug">
+                  Arahkan kamera HP ke QR code ini untuk membuka & mengunduh foto langsung ke smartphone.
+                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCopyLink}
+                    className="h-6 px-2 text-[10px] font-mono text-zinc-300 hover:text-white hover:bg-zinc-800 gap-1 border border-zinc-700/60 rounded-md cursor-pointer"
+                  >
+                    {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Share2 className="h-3 w-3" />}
+                    <span>{copied ? 'Link Tersalin!' : 'Salin Link Foto'}</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             {/* Action Buttons */}
-            <div className="space-y-2">
+            <div className="space-y-2 pt-1">
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   size="lg"
@@ -461,26 +569,17 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                 </Button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleSave}
-                  disabled={isSaving || savedSuccess}
-                  className="border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 gap-1.5 text-xs rounded-lg"
-                >
-                  <Check className={`h-3.5 w-3.5 ${savedSuccess ? 'text-emerald-400' : ''}`} />
-                  {isSaving ? 'Menyimpan...' : savedSuccess ? 'Tersimpan!' : 'Simpan Galeri'}
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  onClick={onNewSession}
-                  className="bg-zinc-800 text-zinc-200 hover:bg-zinc-700 gap-1.5 text-xs rounded-lg"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Sesi Baru
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  onOpenChange(false)
+                  onNewSession()
+                }}
+                className="w-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 text-xs py-2 h-9 cursor-pointer gap-1.5"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Mulai Sesi Baru
+              </Button>
             </div>
           </div>
         </div>

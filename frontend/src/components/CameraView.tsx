@@ -1,7 +1,8 @@
-import React from 'react'
-import { VideoOff, RefreshCw, FlipHorizontal, Maximize2, Minimize2, Camera } from 'lucide-react'
+import React, { useState } from 'react'
+import { VideoOff, RefreshCw, FlipHorizontal, Maximize2, Minimize2, Camera, Video, ChevronDown, Usb } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FILTERS, type FilterKey } from '@/lib/render'
+import type { VideoDevice } from '@/hooks/useCamera'
 
 interface CameraViewProps {
   videoRef: React.RefObject<HTMLVideoElement | null>
@@ -20,6 +21,11 @@ interface CameraViewProps {
   onToggleFullscreen?: () => void
   onStartCapture?: () => void
   retakingPoseIndex?: number | null
+  // External camera device selection
+  videoDevices?: VideoDevice[]
+  selectedDeviceId?: string | null
+  onSwitchCamera?: (deviceId: string) => void
+  onRefreshDevices?: () => void
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -39,7 +45,16 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onToggleFullscreen,
   onStartCapture,
   retakingPoseIndex = null,
+  videoDevices = [],
+  selectedDeviceId,
+  onSwitchCamera,
+  onRefreshDevices,
 }) => {
+  const [showDeviceMenu, setShowDeviceMenu] = useState(false)
+
+  const currentDevice = videoDevices.find((d) => d.deviceId === selectedDeviceId)
+  const hasMultipleDevices = videoDevices.length > 1
+
   return (
     <div
       className={`relative overflow-hidden border border-border/60 bg-black/90 shadow-2xl transition-all duration-300 ${
@@ -130,9 +145,85 @@ export const CameraView: React.FC<CameraViewProps> = ({
             </span>
           </div>
         ) : (
-          <div className="flex items-center gap-2 rounded-full bg-zinc-950/80 backdrop-blur-md border border-white/15 px-3 py-1 text-[11px] font-mono tracking-wide text-zinc-300 pointer-events-auto">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            <span>STANDBY • LIVE</span>
+          /* Camera device selector — shown in standby */
+          <div className="relative pointer-events-auto">
+            <button
+              type="button"
+              onClick={() => {
+                if (onRefreshDevices) onRefreshDevices()
+                if (hasMultipleDevices || videoDevices.length > 0) setShowDeviceMenu(!showDeviceMenu)
+              }}
+              className="flex items-center gap-2 rounded-full bg-zinc-950/80 backdrop-blur-md border border-white/15 px-3 py-1 text-[11px] font-mono tracking-wide text-zinc-300 hover:bg-zinc-800/90 transition-colors cursor-pointer"
+              title="Pilih Kamera"
+            >
+              {currentDevice?.isHdmiCapture ? (
+                <Usb className="h-3 w-3 text-violet-400 shrink-0" />
+              ) : (
+                <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+              )}
+              <span className="max-w-[140px] truncate">
+                {currentDevice ? currentDevice.label : 'STANDBY • LIVE'}
+              </span>
+              {(hasMultipleDevices || videoDevices.length === 0) && (
+                <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
+              )}
+            </button>
+
+            {/* Device dropdown menu */}
+            {showDeviceMenu && videoDevices.length > 0 && (
+              <div
+                className="absolute top-full mt-2 left-0 min-w-[240px] rounded-xl bg-zinc-900/95 border border-white/10 shadow-2xl backdrop-blur-md overflow-hidden z-50"
+                onMouseLeave={() => setShowDeviceMenu(false)}
+              >
+                <div className="px-3 py-2 border-b border-white/10">
+                  <p className="text-[10px] font-mono tracking-wider text-zinc-500 uppercase">Pilih Kamera Input</p>
+                </div>
+                {videoDevices.map((device) => (
+                  <button
+                    key={device.deviceId}
+                    type="button"
+                    onClick={() => {
+                      if (onSwitchCamera) onSwitchCamera(device.deviceId)
+                      setShowDeviceMenu(false)
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-xs font-mono transition-colors hover:bg-zinc-800/80 cursor-pointer ${
+                      device.deviceId === selectedDeviceId ? 'text-white bg-zinc-800/60' : 'text-zinc-400'
+                    }`}
+                  >
+                    {device.isHdmiCapture ? (
+                      <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-violet-500/20 border border-violet-500/30 shrink-0">
+                        <Usb className="h-3.5 w-3.5 text-violet-400" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 shrink-0">
+                        <Video className="h-3.5 w-3.5 text-emerald-400" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-xs font-semibold leading-tight">
+                        {device.label}
+                      </p>
+                      <p className="text-[10px] text-zinc-500 leading-tight mt-0.5">
+                        {device.isHdmiCapture ? '📹 HDMI Capture Card' : '💻 Built-in / USB Webcam'}
+                      </p>
+                    </div>
+                    {device.deviceId === selectedDeviceId && (
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                    )}
+                  </button>
+                ))}
+                <div className="px-3 py-2 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => { if (onRefreshDevices) onRefreshDevices(); setShowDeviceMenu(false) }}
+                    className="flex items-center gap-2 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Refresh Daftar Kamera
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -209,7 +300,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
       {/* Bottom Telemetry HUD */}
       <div className="pointer-events-none absolute bottom-3 inset-x-5 flex items-center justify-between text-[10px] font-mono text-white/50 z-10">
-        <span className="hidden sm:inline">35MM • F/2.0 • ISO 200</span>
+        <span className="hidden sm:inline">
+          {currentDevice?.isHdmiCapture ? '📹 HDMI CAPTURE' : '35MM • F/2.0 • ISO 200'}
+        </span>
         <span className="tracking-widest hidden sm:inline">K-PHOTO LAB 2026</span>
       </div>
     </div>

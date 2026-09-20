@@ -32,6 +32,10 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
     triggerFlash,
     startCamera,
     captureFrame,
+    videoDevices,
+    selectedDeviceId,
+    switchCamera,
+    refreshDevices,
   } = useCamera()
 
   const {
@@ -181,16 +185,16 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
     }
   }
 
-  const handleAddSticker = (emoji: string) => {
-    const randomX = Math.floor(Math.random() * 60) + 20
-    const randomY = Math.floor(Math.random() * 70) + 15
+  const handleAddSticker = (emoji: string, x?: number, y?: number) => {
+    const targetX = x !== undefined ? x : Math.floor(Math.random() * 50) + 25
+    const targetY = y !== undefined ? y : Math.floor(Math.random() * 60) + 20
     const newSticker: StickerItem = {
       id: `${Date.now()}-${Math.random()}`,
       emoji,
-      x: randomX,
-      y: randomY,
+      x: targetX,
+      y: targetY,
       scale: 1,
-      rotation: (Math.random() - 0.5) * 30,
+      rotation: (Math.random() - 0.5) * 20,
     }
     const updated = [...stickers, newSticker]
     setStickers(updated)
@@ -266,6 +270,10 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
           onToggleFullscreen={handleToggleFullscreen}
           onStartCapture={handleStartCapture}
           retakingPoseIndex={retakingPoseIndex}
+          videoDevices={videoDevices}
+          selectedDeviceId={selectedDeviceId}
+          onSwitchCamera={switchCamera}
+          onRefreshDevices={refreshDevices}
         />
       </div>
 

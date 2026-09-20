@@ -3,6 +3,7 @@ const https = require('node:https');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const os = require('node:os');
 const WebSocket = require('ws');
 
 const HOST = '0.0.0.0';
@@ -153,7 +154,37 @@ async function handleRequest(req, res) {
       const ext = body.dataUrl.startsWith('data:image/png') ? 'png' : 'jpg';
       const filename = `${new Date().toISOString().replace(/[:.]/g, '-')}-${crypto.randomBytes(3).toString('hex')}.${ext}`;
       fs.writeFileSync(path.join(CAPTURES, filename), Buffer.from(encoded, 'base64'));
-      return json(res, 201, { capture: { name: filename, url: `/captures/${encodeURIComponent(filename)}` } });
+
+      // Find external LAN IPv4 address for phone QR scanning
+      let lanIp = 'localhost';
+      try {
+        const interfaces = os.networkInterfaces();
+        for (const name of Object.keys(interfaces)) {
+          for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+              lanIp = iface.address;
+              break;
+            }
+          }
+          if (lanIp !== 'localhost') break;
+        }
+      } catch (e) {
+        console.warn('Could not determine LAN IP:', e);
+      }
+
+      const rawHost = req.headers.host || `${lanIp}:${HTTP_PORT}`;
+      const isLocalhost = rawHost.includes('localhost') || rawHost.includes('127.0.0.1');
+      const targetHost = isLocalhost ? `${lanIp}:${HTTP_PORT}` : rawHost;
+      const fileUrl = `/captures/${encodeURIComponent(filename)}`;
+      const directUrl = `http://${targetHost}${fileUrl}`;
+
+      return json(res, 201, {
+        capture: {
+          name: filename,
+          url: fileUrl,
+          directUrl: directUrl,
+        }
+      });
     }
     if (req.method === 'GET' && req.url.startsWith('/captures/')) {
       const file = safePath(CAPTURES, req.url.replace('/captures/', '/'));

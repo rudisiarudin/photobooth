@@ -61,7 +61,7 @@ export function usePhotobooth() {
 
   const [showResultModal, setShowResultModal] = useState<boolean>(false)
   const [isSaving, setIsSaving] = useState<boolean>(false)
-  const [savedInfo, setSavedInfo] = useState<{ name: string; url: string } | null>(null)
+  const [savedInfo, setSavedInfo] = useState<{ name: string; url: string; directUrl?: string } | null>(null)
   const [stickers, setStickers] = useState<StickerItem[]>([])
 
   const cancelSessionRef = useRef<boolean>(false)
@@ -122,6 +122,54 @@ export function usePhotobooth() {
     }
   }, [])
 
+  const saveToGallery = useCallback(
+    async (customDataUrl?: string) => {
+      const urlToSave = customDataUrl || resultDataUrl
+      if (!urlToSave) return null
+
+      setIsSaving(true)
+      try {
+        const res = await fetch('/api/captures', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dataUrl: urlToSave }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.capture) {
+            setSavedInfo(data.capture)
+            return data.capture
+          }
+        }
+      } catch (err) {
+        console.warn('Server save unavailable, falling back to local storage:', err)
+      } finally {
+        setIsSaving(false)
+      }
+
+      // Fallback: save to client-side localStorage so it works on static hosts like Vercel
+      const filename = `photo-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`
+      const fallbackCapture = {
+        name: filename,
+        url: urlToSave,
+        size: Math.round((urlToSave.length * 3) / 4),
+        createdAt: new Date().toISOString(),
+      }
+      try {
+        const stored = JSON.parse(localStorage.getItem('itpalugada_captures') || '[]')
+        localStorage.setItem(
+          'itpalugada_captures',
+          JSON.stringify([fallbackCapture, ...stored.slice(0, 49)])
+        )
+      } catch (e) {
+        console.warn('LocalStorage save error:', e)
+      }
+      setSavedInfo(fallbackCapture)
+      return fallbackCapture
+    },
+    [resultDataUrl]
+  )
+
   const startSession = useCallback(
     async (
       captureFn: () => HTMLCanvasElement | null,
@@ -178,17 +226,18 @@ export function usePhotobooth() {
       setIsSessionRunning(false)
       setCountdownNumber(null)
 
-      // Auto-render strip & GIF
+      // Auto-render strip & GIF & save
       if (capturedList.length > 0) {
         const finalUrl = renderPhotostripByLayout(capturedList, layout, theme, eventConfig)
         setResultDataUrl(finalUrl)
         setShowResultModal(true)
+        saveToGallery(finalUrl)
 
         // Generate animated GIF
         generateAnimatedGif(capturedList)
       }
     },
-    [requiredPoses, layout, theme, eventConfig, generateAnimatedGif]
+    [requiredPoses, layout, theme, eventConfig, generateAnimatedGif, saveToGallery]
   )
 
   // Retake a single specific pose
@@ -223,9 +272,10 @@ export function usePhotobooth() {
         setFrames(updatedFrames)
         setThumbnails(updatedThumbs)
 
-        // Re-render strip with updated frames
+        // Re-render strip with updated frames & save
         const newUrl = renderPhotostripByLayout(updatedFrames, layout, theme, eventConfig)
         setResultDataUrl(newUrl)
+        saveToGallery(newUrl)
 
         // Re-generate GIF
         generateAnimatedGif(updatedFrames)
@@ -233,7 +283,7 @@ export function usePhotobooth() {
 
       setRetakingPoseIndex(null)
     },
-    [isSessionRunning, frames, thumbnails, layout, theme, eventConfig, generateAnimatedGif]
+    [isSessionRunning, frames, thumbnails, layout, theme, eventConfig, generateAnimatedGif, saveToGallery]
   )
 
   const regenerateResultWithThemeAndLayout = useCallback(
@@ -269,62 +319,17 @@ export function usePhotobooth() {
             ctx.restore()
           })
 
-          setResultDataUrl(canvas.toDataURL('image/jpeg', 0.95))
+          const updated = canvas.toDataURL('image/jpeg', 0.95)
+          setResultDataUrl(updated)
+          saveToGallery(updated)
         }
         img.src = baseDataUrl
       } else {
         setResultDataUrl(baseDataUrl)
+        saveToGallery(baseDataUrl)
       }
     },
-    [frames, theme, layout, eventConfig, stickers]
-  )
-
-  const saveToGallery = useCallback(
-    async (customDataUrl?: string) => {
-      const urlToSave = customDataUrl || resultDataUrl
-      if (!urlToSave) return null
-
-      setIsSaving(true)
-      try {
-        const res = await fetch('/api/captures', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dataUrl: urlToSave }),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          if (data.capture) {
-            setSavedInfo(data.capture)
-            return data.capture
-          }
-        }
-      } catch (err) {
-        console.warn('Server save unavailable, falling back to local storage:', err)
-      } finally {
-        setIsSaving(false)
-      }
-
-      // Fallback: save to client-side localStorage so it works on static hosts like Vercel
-      const filename = `photo-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`
-      const fallbackCapture = {
-        name: filename,
-        url: urlToSave,
-        size: Math.round((urlToSave.length * 3) / 4),
-        createdAt: new Date().toISOString(),
-      }
-      try {
-        const stored = JSON.parse(localStorage.getItem('itpalugada_captures') || '[]')
-        localStorage.setItem(
-          'itpalugada_captures',
-          JSON.stringify([fallbackCapture, ...stored.slice(0, 49)])
-        )
-      } catch (e) {
-        console.warn('LocalStorage save error:', e)
-      }
-      setSavedInfo(fallbackCapture)
-      return fallbackCapture
-    },
-    [resultDataUrl]
+    [frames, theme, layout, eventConfig, stickers, saveToGallery]
   )
 
   return {
