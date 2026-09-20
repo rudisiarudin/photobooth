@@ -9,7 +9,7 @@ import { ShotTrack } from '@/components/ShotTrack'
 import { EventSettingsDialog } from '@/components/EventSettingsDialog'
 import { ResultModal } from '@/components/ResultModal'
 import { Button } from '@/components/ui/button'
-import { Camera, RotateCcw, Layers } from 'lucide-react'
+import { Camera, RotateCcw, Layers, Maximize2, Minimize2 } from 'lucide-react'
 
 interface PhotoboothPageProps {
   onOpenSettings: boolean
@@ -67,26 +67,104 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const boothRef = useRef<HTMLDivElement>(null)
 
-  // Sync fullscreen state with browser events
-  useEffect(() => {
-    const onFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
-    }
-    document.addEventListener('fullscreenchange', onFsChange)
-    return () => document.removeEventListener('fullscreenchange', onFsChange)
-  }, [])
-
   const handleToggleFullscreen = useCallback(async () => {
-    if (!document.fullscreenElement) {
+    const doc = document as unknown as {
+      fullscreenElement?: Element
+      webkitFullscreenElement?: Element
+      mozFullScreenElement?: Element
+      msFullscreenElement?: Element
+      exitFullscreen?: () => Promise<void>
+      webkitExitFullscreen?: () => Promise<void>
+      mozCancelFullScreen?: () => Promise<void>
+      msExitFullscreen?: () => Promise<void>
+    }
+
+    const isDocFs = !!(
+      doc.fullscreenElement ||
+      doc.webkitFullscreenElement ||
+      doc.mozFullScreenElement ||
+      doc.msFullscreenElement
+    )
+
+    if (!isFullscreen && !isDocFs) {
+      setIsFullscreen(true)
+      const el = (boothRef.current || document.documentElement) as HTMLElement & {
+        webkitRequestFullscreen?: () => Promise<void>
+        mozRequestFullScreen?: () => Promise<void>
+        msRequestFullscreen?: () => Promise<void>
+      }
       try {
-        await boothRef.current?.requestFullscreen()
+        if (el.requestFullscreen) {
+          await el.requestFullscreen()
+        } else if (el.webkitRequestFullscreen) {
+          await el.webkitRequestFullscreen()
+        } else if (el.mozRequestFullScreen) {
+          await el.mozRequestFullScreen()
+        } else if (el.msRequestFullscreen) {
+          await el.msRequestFullscreen()
+        }
       } catch (e) {
-        console.warn('Fullscreen not available:', e)
+        console.warn('Native requestFullscreen denied or unavailable, using CSS fullscreen:', e)
       }
     } else {
-      document.exitFullscreen()
+      setIsFullscreen(false)
+      try {
+        if (doc.exitFullscreen) {
+          await doc.exitFullscreen()
+        } else if (doc.webkitExitFullscreen) {
+          await doc.webkitExitFullscreen()
+        } else if (doc.mozCancelFullScreen) {
+          await doc.mozCancelFullScreen()
+        } else if (doc.msExitFullscreen) {
+          await doc.msExitFullscreen()
+        }
+      } catch (e) {
+        console.warn('Exit fullscreen error:', e)
+      }
     }
-  }, [])
+  }, [isFullscreen])
+
+  // Sync fullscreen state with browser events & Escape key
+  useEffect(() => {
+    const doc = document as unknown as {
+      fullscreenElement?: Element
+      webkitFullscreenElement?: Element
+      mozFullScreenElement?: Element
+      msFullscreenElement?: Element
+    }
+
+    const onFsChange = () => {
+      const active = !!(
+        doc.fullscreenElement ||
+        doc.webkitFullscreenElement ||
+        doc.mozFullScreenElement ||
+        doc.msFullscreenElement
+      )
+      if (!active) {
+        setIsFullscreen(false)
+      }
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        handleToggleFullscreen()
+      }
+    }
+
+    document.addEventListener('fullscreenchange', onFsChange)
+    document.addEventListener('webkitfullscreenchange', onFsChange)
+    document.addEventListener('mozfullscreenchange', onFsChange)
+    document.addEventListener('MSFullscreenChange', onFsChange)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange)
+      document.removeEventListener('webkitfullscreenchange', onFsChange)
+      document.removeEventListener('mozfullscreenchange', onFsChange)
+      document.removeEventListener('MSFullscreenChange', onFsChange)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isFullscreen, handleToggleFullscreen])
 
   const handleStartCapture = () => {
     startSession(captureFrame, triggerFlash)
@@ -131,9 +209,46 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
   const isCapturing = isSessionRunning || retakingPoseIndex !== null
 
   return (
-    <div ref={boothRef} className="w-full min-h-screen bg-background flex flex-col">
-      {/* === CAMERA PREVIEW — Full Width === */}
-      <div className="w-full px-4 pt-4 pb-2 max-w-5xl mx-auto">
+    <div
+      ref={boothRef}
+      className={
+        isFullscreen
+          ? 'fixed inset-0 z-40 bg-zinc-950 text-foreground flex flex-col w-screen h-screen overflow-hidden select-none'
+          : 'w-full min-h-screen bg-background flex flex-col'
+      }
+    >
+      {/* Fullscreen Kiosk Header */}
+      {isFullscreen && (
+        <div className="w-full flex items-center justify-between px-6 py-2 bg-black/70 backdrop-blur-md border-b border-white/10 z-30 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 pulse-ring" />
+            <span className="text-xs font-mono font-bold tracking-widest text-white uppercase">
+              {eventConfig.title}
+            </span>
+            <span className="text-[10px] font-mono text-zinc-400 hidden sm:inline">
+              • FULLSCREEN KIOSK MODE
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleToggleFullscreen}
+            className="text-xs font-mono text-zinc-300 hover:text-white hover:bg-white/10 gap-1.5 h-8 px-3 rounded-lg border border-white/15 cursor-pointer"
+          >
+            <Minimize2 className="h-3.5 w-3.5" />
+            <span>Keluar Fullscreen (Esc)</span>
+          </Button>
+        </div>
+      )}
+
+      {/* === CAMERA PREVIEW === */}
+      <div
+        className={
+          isFullscreen
+            ? 'flex-1 w-full flex items-center justify-center p-2 sm:p-3 min-h-0'
+            : 'w-full px-4 pt-4 pb-2 max-w-5xl mx-auto'
+        }
+      >
         <CameraView
           videoRef={videoRef}
           cameraActive={cameraActive}
@@ -155,7 +270,13 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
       </div>
 
       {/* === CONTROLS PANEL — Below Camera === */}
-      <div className="w-full max-w-5xl mx-auto px-4 pb-6 space-y-3">
+      <div
+        className={
+          isFullscreen
+            ? 'w-full max-w-5xl mx-auto px-4 pb-3 pt-1 space-y-2 max-h-[28vh] overflow-y-auto shrink-0'
+            : 'w-full max-w-5xl mx-auto px-4 pb-6 space-y-3'
+        }
+      >
 
         {/* ---- Filter Bar ---- */}
         <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm px-4 py-3 shadow-sm">
@@ -196,7 +317,19 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
                   {eventConfig.title}
                 </span>
               </div>
-              <span className="text-[9px] font-mono text-muted-foreground">{eventConfig.date}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-mono text-muted-foreground">{eventConfig.date}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleToggleFullscreen}
+                  title={isFullscreen ? 'Keluar Fullscreen' : 'Layar Penuh'}
+                  className="h-6 px-2 text-[10px] font-mono gap-1 rounded-md border-border/70 text-foreground hover:bg-muted/50 cursor-pointer"
+                >
+                  {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+                  <span>{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
+                </Button>
+              </div>
             </div>
 
             <ShotTrack

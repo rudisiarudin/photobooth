@@ -41,7 +41,14 @@ export const CameraView: React.FC<CameraViewProps> = ({
   retakingPoseIndex = null,
 }) => {
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl border border-border/60 bg-black/90 shadow-2xl" style={{ aspectRatio: '4/3' }}>
+    <div
+      className={`relative overflow-hidden border border-border/60 bg-black/90 shadow-2xl transition-all duration-300 ${
+        isFullscreen
+          ? 'h-full max-h-[76vh] aspect-[4/3] rounded-2xl mx-auto flex items-center justify-center'
+          : 'w-full rounded-2xl'
+      }`}
+      style={{ aspectRatio: '4/3' }}
+    >
       {/* Video element - Always sharp, no blur during capture */}
       <video
         ref={videoRef}
@@ -145,8 +152,12 @@ export const CameraView: React.FC<CameraViewProps> = ({
               variant="outline"
               size="icon"
               onClick={onToggleFullscreen}
-              title={isFullscreen ? 'Keluar Fullscreen' : 'Fullscreen Mode'}
-              className="h-8 w-8 rounded-lg border-white/15 bg-zinc-950/80 backdrop-blur-md text-white hover:bg-zinc-800 hover:text-white"
+              title={isFullscreen ? 'Keluar Fullscreen (Esc)' : 'Mode Fullscreen / Layar Penuh'}
+              className={`h-8 w-8 rounded-lg border-white/20 backdrop-blur-md text-white transition-all cursor-pointer ${
+                isFullscreen
+                  ? 'bg-red-500/80 hover:bg-red-600 hover:text-white'
+                  : 'bg-zinc-950/80 hover:bg-zinc-800 hover:text-white'
+              }`}
             >
               {isFullscreen ? (
                 <Minimize2 className="h-4 w-4" />
