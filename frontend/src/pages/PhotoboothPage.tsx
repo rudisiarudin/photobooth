@@ -37,6 +37,10 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
     switchCamera,
     cycleToNextCamera,
     refreshDevices,
+    ipStreamUrl,
+    isIpStreamMode,
+    connectIpStream,
+    disconnectIpStream,
   } = useCamera()
 
   const {
@@ -277,6 +281,10 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
           onCycleCamera={cycleToNextCamera}
           onRefreshDevices={refreshDevices}
           isExternalCamera={videoDevices.find((d) => d.deviceId === selectedDeviceId)?.isHdmiCapture ?? false}
+          isIpStreamMode={isIpStreamMode}
+          ipStreamUrl={ipStreamUrl}
+          onConnectIpStream={connectIpStream}
+          onDisconnectIpStream={disconnectIpStream}
         />
       </div>
 

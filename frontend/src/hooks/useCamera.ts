@@ -74,6 +74,10 @@ export function useCamera() {
   const [videoDevices, setVideoDevices] = useState<VideoDevice[]>([])
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
 
+  // IP Stream URL mode (for Android: IP Webcam app stream, e.g. http://ip:8080/video)
+  const [ipStreamUrl, setIpStreamUrl] = useState<string>('')
+  const [isIpStreamMode, setIsIpStreamMode] = useState<boolean>(false)
+
   // -----------------------------------------------------------------------
   // Internal: stop current stream
   // -----------------------------------------------------------------------
@@ -354,6 +358,58 @@ export function useCamera() {
     return () => navigator.mediaDevices.removeEventListener('devicechange', onDeviceChange)
   }, [refreshDevices, switchCamera, selectedDeviceId])
 
+  // -----------------------------------------------------------------------
+  // connectIpStream — connect to an MJPEG/HLS stream URL
+  // Works with Android "IP Webcam" app, USB Camera app, etc.
+  // Usage: user enters http://192.168.x.x:8080/video in the UI
+  // -----------------------------------------------------------------------
+  const connectIpStream = useCallback(async (url: string) => {
+    if (!url) return
+    stopCurrentStream()
+    setCameraError(null)
+    setCameraActive(false)
+    setIsIpStreamMode(true)
+    setIpStreamUrl(url)
+    setIsMirrored(false) // external stream, no mirror needed
+
+    const video = videoRef.current
+    if (!video) return
+
+    // Clear any existing srcObject
+    video.srcObject = null
+
+    // Use the URL directly as video src
+    video.src = url
+    video.crossOrigin = 'anonymous'
+
+    try {
+      await video.play()
+      setCameraActive(true)
+      console.log('[Camera] IP stream connected:', url)
+    } catch (err) {
+      console.error('[Camera] IP stream error:', err)
+      // Some MJPEG streams don't play via <video>, try <img> fallback below
+      setCameraError(
+        'Stream tidak bisa diputar via video. Pastikan URL adalah stream MJPEG/HLS yang valid.'
+      )
+      setCameraActive(false)
+    }
+  }, [stopCurrentStream])
+
+  // -----------------------------------------------------------------------
+  // disconnectIpStream — go back to regular camera
+  // -----------------------------------------------------------------------
+  const disconnectIpStream = useCallback(async () => {
+    const video = videoRef.current
+    if (video) {
+      video.src = ''
+      video.srcObject = null
+    }
+    setIsIpStreamMode(false)
+    setIpStreamUrl('')
+    await startCamera()
+  }, [startCamera])
+
   return {
     videoRef,
     cameraActive,
@@ -374,5 +430,10 @@ export function useCamera() {
     switchCamera,
     cycleToNextCamera,
     refreshDevices,
+    // IP Stream mode (Android / IP Webcam)
+    ipStreamUrl,
+    isIpStreamMode,
+    connectIpStream,
+    disconnectIpStream,
   }
 }

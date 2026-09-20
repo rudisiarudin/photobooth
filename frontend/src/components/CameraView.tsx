@@ -11,6 +11,9 @@ import {
   Usb,
   SwitchCamera,
   Info,
+  Wifi,
+  Globe,
+  Smartphone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FILTERS, type FilterKey } from '@/lib/render'
@@ -41,6 +44,11 @@ interface CameraViewProps {
   onRefreshDevices?: () => void
   // Whether current feed is from an external/HDMI capture card
   isExternalCamera?: boolean
+  // IP Stream Mode (Android / IP Webcam app)
+  isIpStreamMode?: boolean
+  ipStreamUrl?: string
+  onConnectIpStream?: (url: string) => Promise<void>
+  onDisconnectIpStream?: () => Promise<void>
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -66,9 +74,15 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onCycleCamera,
   onRefreshDevices,
   isExternalCamera = false,
+  isIpStreamMode = false,
+  ipStreamUrl = '',
+  onConnectIpStream,
+  onDisconnectIpStream,
 }) => {
   const [showDeviceMenu, setShowDeviceMenu] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [showStreamInput, setShowStreamInput] = useState(false)
+  const [streamInputUrl, setStreamInputUrl] = useState(ipStreamUrl || 'http://localhost:8080/video')
   const menuRef = useRef<HTMLDivElement>(null)
 
   const currentDevice = videoDevices.find((d) => d.deviceId === selectedDeviceId)
@@ -302,7 +316,26 @@ export const CameraView: React.FC<CameraViewProps> = ({
                   )}
                 </div>
 
-                {/* Dropdown footer with refresh & tips */}
+                {/* IP Stream active indicator if connected */}
+                {isIpStreamMode && (
+                  <div className="px-3.5 py-2 border-t border-emerald-500/20 bg-emerald-500/10 flex items-center justify-between text-[11px] text-emerald-400">
+                    <span className="flex items-center gap-1.5 truncate">
+                      <Wifi className="h-3.5 w-3.5 shrink-0 animate-pulse" />
+                      <span className="truncate">IP Stream: {ipStreamUrl}</span>
+                    </span>
+                    {onDisconnectIpStream && (
+                      <button
+                        type="button"
+                        onClick={onDisconnectIpStream}
+                        className="ml-2 text-[10px] text-rose-400 hover:underline shrink-0"
+                      >
+                        Disconnect
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Dropdown footer with refresh, IP Stream, & tips */}
                 <div className="px-3.5 py-2 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-[10px] text-zinc-400 font-mono">
                   <button
                     type="button"
@@ -317,26 +350,78 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
                   <button
                     type="button"
+                    onClick={() => setShowStreamInput((prev) => !prev)}
+                    className="flex items-center gap-1 text-sky-400 hover:text-sky-300 transition-colors cursor-pointer"
+                  >
+                    <Globe className="h-3 w-3" />
+                    <span>IP / Android</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setShowHelp((prev) => !prev)}
                     className="flex items-center gap-1 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
                   >
                     <Info className="h-3 w-3" />
-                    <span>Tips HDMI</span>
+                    <span>Panduan</span>
                   </button>
                 </div>
 
+                {/* IP Stream Input Box */}
+                {showStreamInput && (
+                  <div className="p-3 bg-zinc-900 border-t border-sky-500/30 text-xs space-y-2">
+                    <div className="flex items-center gap-1.5 text-sky-300 font-semibold text-[11px]">
+                      <Smartphone className="h-3.5 w-3.5" />
+                      <span>Stream URL (Aplikasi USB Camera / IP Webcam)</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400">
+                      Masukkan URL stream dari aplikasi di tablet atau PC lokal:
+                    </p>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={streamInputUrl}
+                        onChange={(e) => setStreamInputUrl(e.target.value)}
+                        placeholder="http://localhost:8080/video"
+                        className="flex-1 bg-black/60 border border-white/20 rounded px-2 py-1 text-xs text-white font-mono placeholder:text-zinc-600 focus:outline-none focus:border-sky-400"
+                      />
+                      <Button
+                        size="sm"
+                        className="h-7 px-2.5 text-[10px] bg-sky-600 hover:bg-sky-500 text-white"
+                        onClick={() => {
+                          if (onConnectIpStream && streamInputUrl) {
+                            onConnectIpStream(streamInputUrl)
+                            setShowDeviceMenu(false)
+                          }
+                        }}
+                      >
+                        Connect
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Expandable Help Inside Dropdown */}
                 {showHelp && (
-                  <div className="p-3 bg-amber-950/40 border-t border-amber-500/30 text-[10px] text-amber-200/90 space-y-1.5">
-                    <p className="font-bold text-amber-300">Jika Sony A6000 belum terbaca:</p>
-                    <ol className="list-decimal list-inside space-y-1 text-zinc-300">
-                      <li>
-                        <strong>Tutup total</strong> aplikasi video capture lain di tablet (misal OTG View / USB Camera) agar USB port tidak terkunci.
-                      </li>
-                      <li>Cabut dan colok ulang koneksi HDMI Capture Card.</li>
-                      <li>Nyalakan Sony A6000 dan pastikan mode Movie / Photo aktif.</li>
-                      <li>Klik <em>Scan Ulang</em> di atas.</li>
-                    </ol>
+                  <div className="p-3 bg-amber-950/40 border-t border-amber-500/30 text-[10px] text-amber-200/90 space-y-2">
+                    <p className="font-bold text-amber-300 flex items-center gap-1">
+                      <Smartphone className="h-3 w-3" />
+                      Kenapa Tablet Android tidak mendeteksi USB di browser?
+                    </p>
+                    <p className="text-zinc-300 leading-relaxed">
+                      Sistem operasi Android <strong>memblokir akses USB capture card dari Google Chrome</strong> untuk alasan keamanan. Browser hanya bisa membaca kamera depan/belakang bawaan.
+                    </p>
+                    <div className="border-t border-amber-500/20 pt-1.5 space-y-1.5">
+                      <p className="font-semibold text-amber-300">2 Cara Menggunakan Tablet:</p>
+                      <ol className="list-decimal list-inside space-y-1 text-zinc-300">
+                        <li>
+                          <strong>Cara Terbaik (Spacedesk):</strong> Colok Sony A6000 ke PC/Laptop (di PC sudah terbukti jalan full frame). Install <em>Spacedesk</em> agar tablet jadi monitor layar sentuh PC. Pengunjung menekan tablet, kamera diproses di PC!
+                        </li>
+                        <li>
+                          <strong>Stream via Aplikasi:</strong> Buka aplikasi <em>USB Camera</em> di tablet &rarr; aktifkan <em>IP Camera Server</em> &rarr; masukkan linknya di tombol <em>IP / Android</em> di atas.
+                        </li>
+                      </ol>
+                    </div>
                   </div>
                 )}
               </div>
