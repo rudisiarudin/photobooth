@@ -129,14 +129,14 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
           <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-xl">
             <CardContent className="p-5 space-y-5">
               {/* Event Header info badge */}
-              <div className="flex items-center justify-between pb-2 border-b border-border/40">
+              <div className="flex items-center justify-between pb-2 border-b border-border/50">
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                  <div className="h-2 w-2 rounded-full bg-emerald-400" />
                   <span className="text-xs font-bold tracking-wide text-foreground">
                     {eventConfig.title}
                   </span>
                 </div>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-[11px] font-mono text-muted-foreground">
                   {eventConfig.date}
                 </span>
               </div>
@@ -169,13 +169,13 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
                   size="lg"
                   disabled={!cameraActive || isSessionRunning}
                   onClick={handleStartCapture}
-                  className="w-full h-12 gap-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-indigo-600 text-white font-semibold shadow-lg shadow-rose-500/25 hover:from-rose-600 hover:to-indigo-700 transition-all cursor-pointer text-base"
+                  className="w-full h-14 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-bold text-sm sm:text-base shadow-xl shadow-black/30 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer border border-zinc-200 gap-2.5 disabled:opacity-50"
                 >
-                  <Camera className="h-5 w-5" />
+                  <Camera className="h-5 w-5 stroke-[2]" />
                   <span>
                     {isSessionRunning
                       ? `Mengambil Pose #${currentPoseIndex + 1}...`
-                      : 'Mulai Foto Sekarang (3s Countdown)'}
+                      : 'Mulai Ambil Foto (3s Countdown)'}
                   </span>
                 </Button>
 
@@ -185,7 +185,7 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
                       variant="outline"
                       size="sm"
                       onClick={() => setShowResultModal(true)}
-                      className="border-border/80 gap-1.5 text-xs text-foreground"
+                      className="border-border/80 gap-1.5 text-xs text-foreground hover:bg-muted/50"
                     >
                       <Layers className="h-3.5 w-3.5" />
                       Lihat Hasil Strip

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Camera, Image as ImageIcon, Settings, Sparkles, MonitorPlay } from 'lucide-react'
+import { Camera, Image as ImageIcon, Settings, MonitorPlay } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
@@ -19,34 +19,38 @@ export const Header: React.FC<HeaderProps> = ({
   eventTitle,
 }) => {
   return (
-    <header className="sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-border/50 bg-background/90 backdrop-blur-md">
       <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-rose-500 to-indigo-500 text-white shadow-md shadow-rose-500/20">
-            <Camera className="h-5 w-5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-700/60 text-zinc-100 shadow-sm">
+            <Camera className="h-5 w-5 stroke-[1.75]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold tracking-tight text-foreground">
+              <span className="font-bold tracking-tight text-foreground text-sm sm:text-base">
                 IT Palugada
               </span>
-              <Badge variant="secondary" className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                Photobooth
+              <Badge variant="outline" className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase border-border/80 px-1.5 py-0">
+                STUDIO 01
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground hidden sm:block">
-              {eventTitle || 'Modern Event Photo Experience'}
+            <p className="text-[11px] text-muted-foreground hidden sm:block">
+              {eventTitle || 'Event Photobooth Station'}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex items-center rounded-lg border border-border bg-muted/30 p-1">
+          <div className="flex items-center rounded-lg border border-border/80 bg-muted/40 p-0.5">
             <Button
               variant={activeTab === 'booth' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => onTabChange('booth')}
-              className="gap-1.5 text-xs font-medium"
+              className={`h-8 gap-1.5 text-xs font-medium rounded-md transition-all ${
+                activeTab === 'booth'
+                  ? 'bg-zinc-100 text-zinc-950 dark:bg-zinc-100 dark:text-zinc-950 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
               <Camera className="h-3.5 w-3.5" />
               <span>Booth</span>
@@ -55,7 +59,11 @@ export const Header: React.FC<HeaderProps> = ({
               variant={activeTab === 'dashboard' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => onTabChange('dashboard')}
-              className="gap-1.5 text-xs font-medium"
+              className={`h-8 gap-1.5 text-xs font-medium rounded-md transition-all ${
+                activeTab === 'dashboard'
+                  ? 'bg-zinc-100 text-zinc-950 dark:bg-zinc-100 dark:text-zinc-950 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
               <ImageIcon className="h-3.5 w-3.5" />
               <span>Gallery</span>
@@ -66,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
             variant="outline"
             size="sm"
             onClick={onOpenSettings}
-            className="gap-1.5 text-xs border-dashed"
+            className="h-8 gap-1.5 text-xs border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/50"
           >
             <Settings className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Settings</span>
@@ -77,18 +85,18 @@ export const Header: React.FC<HeaderProps> = ({
               variant="ghost"
               size="sm"
               onClick={onOpenSplash}
-              title="Tampilkan Layar Splash Standby Kiosk"
-              className="gap-1.5 text-xs text-zinc-400 hover:text-zinc-100 hidden sm:flex"
+              title="Layar Standby Kiosk"
+              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground hidden sm:flex"
             >
-              <MonitorPlay className="h-3.5 w-3.5 text-rose-400" />
+              <MonitorPlay className="h-3.5 w-3.5 text-zinc-400" />
               <span>Standby</span>
             </Button>
           )}
 
-          <Badge variant="outline" className="hidden lg:flex items-center gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs">
-            <Sparkles className="h-3 w-3 text-emerald-400 animate-pulse" />
-            Live Station
-          </Badge>
+          <div className="hidden lg:flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-[11px] font-medium text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>LIVE STATION</span>
+          </div>
         </div>
       </div>
     </header>

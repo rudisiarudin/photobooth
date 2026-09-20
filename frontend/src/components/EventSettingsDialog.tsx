@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { EventConfig } from '@/lib/render'
-import { Sparkles, Calendar, Type } from 'lucide-react'
+import { Calendar, Type } from 'lucide-react'
 
 interface EventSettingsDialogProps {
   open: boolean
@@ -40,9 +40,11 @@ export const EventSettingsDialog: React.FC<EventSettingsDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px] bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader>
-          <div className="flex items-center gap-2 text-rose-400">
-            <Sparkles className="h-5 w-5" />
-            <DialogTitle className="text-xl">Pengaturan Event</DialogTitle>
+          <div className="flex items-center gap-2.5 text-zinc-100">
+            <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-1.5 text-zinc-200">
+              <Type className="h-4 w-4" />
+            </div>
+            <DialogTitle className="text-lg font-bold tracking-tight">PENGATURAN EVENT</DialogTitle>
           </div>
           <DialogDescription className="text-zinc-400 text-xs">
             Teks ini akan dicetak di bagian bawah (footer) frame foto photobooth Anda.
@@ -60,7 +62,7 @@ export const EventSettingsDialog: React.FC<EventSettingsDialogProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Contoh: IT PALUGADA"
-              className="bg-zinc-900/80 border-zinc-800 focus-visible:ring-rose-500"
+              className="bg-zinc-900 border-zinc-800 focus-visible:ring-zinc-400 text-zinc-100 font-medium"
               required
             />
           </div>
@@ -75,7 +77,7 @@ export const EventSettingsDialog: React.FC<EventSettingsDialogProps> = ({
               value={subtitle}
               onChange={(e) => setSubtitle(e.target.value)}
               placeholder="Contoh: WEDDING OF SARAH & BUDI"
-              className="bg-zinc-900/80 border-zinc-800 focus-visible:ring-rose-500"
+              className="bg-zinc-900 border-zinc-800 focus-visible:ring-zinc-400 text-zinc-100 font-medium"
             />
           </div>
 
@@ -89,7 +91,7 @@ export const EventSettingsDialog: React.FC<EventSettingsDialogProps> = ({
               value={date}
               onChange={(e) => setDate(e.target.value)}
               placeholder="Contoh: 20 September 2026"
-              className="bg-zinc-900/80 border-zinc-800 focus-visible:ring-rose-500"
+              className="bg-zinc-900 border-zinc-800 focus-visible:ring-zinc-400 text-zinc-100 font-medium"
             />
           </div>
 
@@ -106,7 +108,7 @@ export const EventSettingsDialog: React.FC<EventSettingsDialogProps> = ({
             <Button
               type="submit"
               size="sm"
-              className="bg-gradient-to-r from-rose-500 to-indigo-500 text-white hover:opacity-90"
+              className="bg-zinc-100 hover:bg-white text-zinc-950 font-bold"
             >
               Simpan Perubahan
             </Button>

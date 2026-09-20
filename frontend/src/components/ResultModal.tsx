@@ -7,7 +7,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import type { ThemeKey } from '@/lib/render'
 import type { StickerItem } from '@/hooks/usePhotobooth'
 import confetti from 'canvas-confetti'
@@ -16,11 +15,12 @@ import {
   Download,
   Share2,
   RefreshCw,
-  Sparkles,
   Check,
   Palette,
   Smile,
   Trash2,
+  Printer,
+  Camera,
 } from 'lucide-react'
 
 interface ResultModalProps {
@@ -127,36 +127,71 @@ export const ResultModal: React.FC<ResultModalProps> = ({
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handlePrint = () => {
+    if (!resultDataUrl) return
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Cetak Photostrip</title>
+          <style>
+            @page { margin: 0; size: auto; }
+            body {
+              margin: 0;
+              padding: 0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              background: #fff;
+            }
+            img {
+              max-width: 100vw;
+              max-height: 100vh;
+              object-fit: contain;
+            }
+          </style>
+        </head>
+        <body>
+          <img src="${resultDataUrl}" onload="window.print(); window.close();" />
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto bg-zinc-950 border-zinc-800 text-zinc-100 p-4 sm:p-6">
-        <DialogHeader className="pb-2 border-b border-zinc-800">
+        <DialogHeader className="pb-3 border-b border-zinc-800/80">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-rose-500/10 p-2 text-rose-400">
-                <Sparkles className="h-5 w-5" />
+            <div className="flex items-center gap-2.5">
+              <div className="rounded-xl bg-zinc-900 border border-zinc-700/60 p-2 text-zinc-100 shadow-sm">
+                <Camera className="h-5 w-5 stroke-[1.75]" />
               </div>
               <div>
-                <DialogTitle className="text-lg sm:text-xl font-bold">
-                  Hasil Photobooth Anda!
+                <DialogTitle className="text-base sm:text-lg font-bold tracking-tight">
+                  HASIL SESI PHOTOBOOTH
                 </DialogTitle>
                 <DialogDescription className="text-xs text-zinc-400">
-                  Foto berhasil dirangkai. Hias dengan stiker, simpan, atau scan QR code.
+                  Foto strip siap dicetak atau diunduh langsung ke smartphone tamu.
                 </DialogDescription>
               </div>
             </div>
-            <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 text-xs hidden sm:flex">
-              Siap Cetak
-            </Badge>
+            <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-0.5 text-[11px] font-mono font-medium text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span>SIAP CETAK</span>
+            </div>
           </div>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 py-2">
           {/* Left Preview Column */}
-          <div className="md:col-span-6 flex flex-col items-center justify-center rounded-2xl bg-zinc-900/50 p-4 border border-zinc-800/80">
+          <div className="md:col-span-6 flex flex-col items-center justify-center rounded-2xl bg-zinc-900/40 p-4 border border-zinc-800/80">
             <div
               ref={imageContainerRef}
-              className="relative max-h-[58vh] overflow-hidden rounded-xl shadow-2xl transition-all"
+              className="relative max-h-[58vh] overflow-hidden rounded-xl shadow-2xl transition-all border border-white/5"
             >
               {resultDataUrl ? (
                 <img
@@ -165,25 +200,25 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                   className="max-h-[58vh] w-auto rounded-lg object-contain"
                 />
               ) : (
-                <div className="flex h-72 w-48 items-center justify-center text-zinc-600">
-                  Memuat foto...
+                <div className="flex h-72 w-48 items-center justify-center text-zinc-600 font-mono text-xs">
+                  RENDERING STRIP...
                 </div>
               )}
             </div>
 
             {/* Quick theme switch underneath */}
             <div className="mt-4 flex items-center gap-2">
-              <span className="text-[11px] text-zinc-400 flex items-center gap-1">
+              <span className="text-[11px] font-mono text-zinc-400 flex items-center gap-1 uppercase">
                 <Palette className="h-3 w-3" /> Tema:
               </span>
               {(['dark', 'cream', 'pink', 'white'] as ThemeKey[]).map((t) => (
                 <button
                   key={t}
                   onClick={() => onChangeTheme(t)}
-                  className={`h-6 px-2.5 rounded-full text-[10px] font-medium transition-all capitalize ${
+                  className={`h-6 px-2.5 rounded-md text-[10px] font-medium transition-all capitalize ${
                     currentTheme === t
-                      ? 'bg-zinc-100 text-zinc-900 font-semibold ring-2 ring-rose-500'
-                      : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-100 text-zinc-950 font-bold shadow-sm'
+                      : 'bg-zinc-800/80 text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   {t}
@@ -198,15 +233,15 @@ export const ResultModal: React.FC<ResultModalProps> = ({
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-                  <Smile className="h-3.5 w-3.5 text-rose-400" />
-                  Tambah Stiker Cute
+                  <Smile className="h-3.5 w-3.5 text-zinc-400" />
+                  Tambah Stiker
                 </label>
                 {stickers.length > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={onClearStickers}
-                    className="h-6 px-2 text-[10px] text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 gap-1"
+                    className="h-6 px-2 text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 gap-1"
                   >
                     <Trash2 className="h-3 w-3" />
                     Hapus Stiker ({stickers.length})
@@ -220,7 +255,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                     key={emoji}
                     type="button"
                     onClick={() => onAddSticker(emoji)}
-                    className="h-9 w-9 rounded-lg bg-zinc-800/80 hover:bg-zinc-700/80 text-lg flex items-center justify-center transition-transform hover:scale-125 active:scale-95 cursor-pointer shadow-sm"
+                    className="h-9 w-9 rounded-lg bg-zinc-800/80 hover:bg-zinc-700/80 text-lg flex items-center justify-center transition-transform hover:scale-115 active:scale-95 cursor-pointer border border-zinc-700/40 shadow-sm"
                   >
                     {emoji}
                   </button>
@@ -237,14 +272,14 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                 {qrDataUrl ? (
                   <img src={qrDataUrl} alt="Scan QR Code" className="h-24 w-24 object-contain" />
                 ) : (
-                  <div className="h-24 w-24 flex items-center justify-center text-xs text-zinc-400">
+                  <div className="h-24 w-24 flex items-center justify-center text-xs text-zinc-400 font-mono">
                     QR...
                   </div>
                 )}
               </div>
 
               <div className="space-y-1 text-left flex-1">
-                <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
+                <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-wider font-mono">
                   Download ke Smartphone
                 </h4>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
@@ -255,7 +290,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                     variant="ghost"
                     size="sm"
                     onClick={handleCopyLink}
-                    className="h-6 px-2 text-[10px] text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 gap-1 mt-1"
+                    className="h-6 px-2 text-[10px] text-zinc-300 hover:text-white hover:bg-zinc-800 gap-1 mt-1"
                   >
                     {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Share2 className="h-3 w-3" />}
                     <span>{copied ? 'Link Tersalin!' : 'Salin Link Foto'}</span>
@@ -265,22 +300,34 @@ export const ResultModal: React.FC<ResultModalProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="space-y-2 pt-2">
-              <Button
-                size="lg"
-                onClick={handleDownload}
-                className="w-full gap-2 bg-gradient-to-r from-rose-500 to-indigo-500 text-white font-semibold shadow-lg shadow-rose-500/20 hover:opacity-95"
-              >
-                <Download className="h-4 w-4" />
-                Download Foto High-Res
-              </Button>
-
+            <div className="space-y-2 pt-1">
               <div className="grid grid-cols-2 gap-2">
+                <Button
+                  size="lg"
+                  onClick={handleDownload}
+                  className="w-full gap-2 bg-zinc-100 hover:bg-white text-zinc-950 font-bold shadow-md text-xs sm:text-sm cursor-pointer rounded-xl h-12"
+                >
+                  <Download className="h-4 w-4" />
+                  Download File
+                </Button>
+
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={handlePrint}
+                  className="w-full gap-2 border-zinc-700 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-100 font-bold shadow-sm text-xs sm:text-sm cursor-pointer rounded-xl h-12"
+                >
+                  <Printer className="h-4 w-4" />
+                  Cetak Foto
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
                 <Button
                   variant="outline"
                   onClick={handleSave}
                   disabled={isSaving || savedSuccess}
-                  className="border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 gap-1.5 text-xs"
+                  className="border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800 gap-1.5 text-xs rounded-lg"
                 >
                   <Check className={`h-3.5 w-3.5 ${savedSuccess ? 'text-emerald-400' : ''}`} />
                   {isSaving ? 'Menyimpan...' : savedSuccess ? 'Tersimpan di Galeri' : 'Simpan ke Galeri'}
@@ -289,7 +336,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                 <Button
                   variant="secondary"
                   onClick={onNewSession}
-                  className="bg-zinc-800 text-zinc-200 hover:bg-zinc-700 gap-1.5 text-xs"
+                  className="bg-zinc-800 text-zinc-200 hover:bg-zinc-700 gap-1.5 text-xs rounded-lg"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                   Sesi Foto Baru

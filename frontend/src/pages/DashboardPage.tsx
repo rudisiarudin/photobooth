@@ -15,7 +15,6 @@ import {
   Calendar,
   Eye,
   ExternalLink,
-  Sparkles,
 } from 'lucide-react'
 
 interface CaptureItem {
@@ -207,14 +206,14 @@ export const DashboardPage: React.FC = () => {
       <Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
         <DialogContent className="max-w-xl bg-zinc-950 border-zinc-800 text-zinc-100 p-4">
           <DialogHeader>
-            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-rose-400" />
+            <DialogTitle className="text-sm font-mono font-semibold flex items-center gap-2">
+              <ImageIcon className="h-4 w-4 text-zinc-400" />
               {selectedPhoto?.name}
             </DialogTitle>
           </DialogHeader>
           {selectedPhoto && (
             <div className="space-y-4">
-              <div className="flex justify-center max-h-[70vh] overflow-hidden rounded-xl bg-black/60 p-2">
+              <div className="flex justify-center max-h-[70vh] overflow-hidden rounded-xl bg-black/60 p-2 border border-zinc-800/80">
                 <img
                   src={selectedPhoto.url}
                   alt={selectedPhoto.name}
@@ -222,14 +221,14 @@ export const DashboardPage: React.FC = () => {
                 />
               </div>
               <div className="flex items-center justify-between pt-2">
-                <span className="text-xs text-zinc-400">
+                <span className="text-xs font-mono text-zinc-400">
                   {formatDate(selectedPhoto.createdAt)} • {formatBytes(selectedPhoto.size)}
                 </span>
                 <a
                   href={selectedPhoto.url}
                   download={selectedPhoto.name}
                 >
-                  <Button size="sm" className="gap-1.5 bg-rose-500 hover:bg-rose-600 text-white">
+                  <Button size="sm" className="gap-1.5 bg-zinc-100 hover:bg-white text-zinc-950 font-bold">
                     <Download className="h-3.5 w-3.5" />
                     Download File Asli
                   </Button>

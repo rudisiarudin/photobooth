@@ -1,7 +1,6 @@
 import React from 'react'
-import { VideoOff, RefreshCw, FlipHorizontal, Eye } from 'lucide-react'
+import { VideoOff, RefreshCw, FlipHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { FILTERS, type FilterKey } from '@/lib/render'
 
 interface CameraViewProps {
@@ -81,30 +80,41 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
       {/* Countdown overlay */}
       {countdownNumber !== null && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px]">
-          <div className="flex h-36 w-36 items-center justify-center rounded-full border-4 border-white/40 bg-black/60 shadow-2xl animate-pop">
-            <span className="text-7xl font-black tracking-tighter text-white drop-shadow-md">
+        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="flex h-36 w-36 items-center justify-center rounded-full border-2 border-white/20 bg-zinc-950/80 shadow-2xl ring-8 ring-white/5 animate-pop">
+            <span className="text-8xl font-black tracking-tighter text-white font-mono">
               {countdownNumber}
             </span>
           </div>
-          <p className="mt-4 text-sm font-semibold tracking-wider text-white uppercase drop-shadow">
-            Bersiap untuk Pose {currentPoseIndex + 1}
-          </p>
+          <div className="mt-5 flex items-center gap-2 rounded-full border border-white/20 bg-black/70 px-4 py-1.5 backdrop-blur-md">
+            <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+            <p className="text-xs font-mono tracking-widest text-white uppercase">
+              POSE {currentPoseIndex + 1} / {totalPoses}
+            </p>
+          </div>
         </div>
       )}
 
+      {/* Viewfinder Corner Brackets */}
+      <div className="pointer-events-none absolute inset-6 z-10">
+        <div className="absolute top-0 left-0 h-6 w-6 border-t-2 border-l-2 border-white/30" />
+        <div className="absolute top-0 right-0 h-6 w-6 border-t-2 border-r-2 border-white/30" />
+        <div className="absolute bottom-0 left-0 h-6 w-6 border-b-2 border-l-2 border-white/30" />
+        <div className="absolute bottom-0 right-0 h-6 w-6 border-b-2 border-r-2 border-white/30" />
+      </div>
+
       {/* Top Status & Controls Overlay */}
-      <div className="absolute top-4 inset-x-4 flex items-center justify-between z-10 pointer-events-none">
+      <div className="absolute top-4 inset-x-4 flex items-center justify-between z-15 pointer-events-none">
         {isSessionRunning ? (
-          <Badge className="bg-rose-600 text-white shadow-lg pointer-events-auto animate-pulse flex items-center gap-1.5 px-3 py-1 text-xs">
-            <span className="h-2 w-2 rounded-full bg-white" />
-            Pose {currentPoseIndex + 1} dari {totalPoses}
-          </Badge>
+          <div className="flex items-center gap-2 rounded-full bg-red-600/90 text-white shadow-lg pointer-events-auto px-3.5 py-1 text-xs font-mono font-semibold tracking-wider">
+            <span className="h-2 w-2 rounded-full bg-white animate-ping" />
+            <span>REC • POSE {currentPoseIndex + 1} OF {totalPoses}</span>
+          </div>
         ) : (
-          <Badge variant="outline" className="bg-black/60 backdrop-blur-md border-white/10 text-zinc-300 pointer-events-auto text-xs">
-            <Eye className="h-3 w-3 mr-1 text-emerald-400" />
-            Live Preview
-          </Badge>
+          <div className="flex items-center gap-2 rounded-full bg-zinc-950/80 backdrop-blur-md border border-white/15 px-3 py-1 text-[11px] font-mono tracking-wide text-zinc-300 pointer-events-auto">
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            <span>STANDBY • 1080P</span>
+          </div>
         )}
 
         <div className="flex items-center gap-2 pointer-events-auto">
@@ -113,15 +123,18 @@ export const CameraView: React.FC<CameraViewProps> = ({
             size="icon"
             onClick={onToggleMirror}
             title={isMirrored ? 'Mode Normal' : 'Mode Mirror'}
-            className="h-8 w-8 rounded-full border-white/15 bg-black/60 text-white hover:bg-white/20 hover:text-white"
+            className="h-8 w-8 rounded-lg border-white/15 bg-zinc-950/80 backdrop-blur-md text-white hover:bg-zinc-800 hover:text-white"
           >
             <FlipHorizontal className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Film grain / vintage scanline aesthetic */}
-      <div className="pointer-events-none absolute inset-0 border border-white/5 bg-gradient-to-b from-transparent via-transparent to-black/30" />
+      {/* Bottom Telemetry HUD */}
+      <div className="pointer-events-none absolute bottom-3 inset-x-5 flex items-center justify-between text-[10px] font-mono text-white/50 z-10">
+        <span>35MM • F/2.0 • ISO 200</span>
+        <span className="tracking-widest">K-PHOTO LAB 2026</span>
+      </div>
     </div>
   )
 }

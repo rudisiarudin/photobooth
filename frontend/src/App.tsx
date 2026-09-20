@@ -15,7 +15,7 @@ export function App() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-rose-500/20 selection:text-rose-300">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-zinc-800 selection:text-zinc-100">
       {/* Fullscreen Video Splash Screen */}
       {showSplash && (
         <SplashScreen onEnter={() => setShowSplash(false)} />
