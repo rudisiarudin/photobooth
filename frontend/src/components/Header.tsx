@@ -1,5 +1,12 @@
-import React from 'react'
-import { Camera, Image as ImageIcon, Settings, MonitorPlay } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import {
+  Camera,
+  Image as ImageIcon,
+  Settings,
+  MonitorPlay,
+  Maximize,
+  Minimize,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
@@ -18,6 +25,30 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSplash,
   eventTitle,
 }) => {
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false)
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [])
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen()
+      } else {
+        await document.exitFullscreen()
+      }
+    } catch (err) {
+      console.warn('Fullscreen request failed:', err)
+    }
+  }
+
   return (
     <header className="sticky top-0 z-40 border-b border-border/50 bg-background/90 backdrop-blur-md">
       <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
@@ -48,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => onTabChange('booth')}
               className={`h-8 gap-1.5 text-xs font-medium rounded-md transition-all ${
                 activeTab === 'booth'
-                  ? 'bg-zinc-100 text-zinc-950 dark:bg-zinc-100 dark:text-zinc-950 shadow-sm'
+                  ? 'bg-zinc-100 text-zinc-950 dark:bg-zinc-100 dark:text-zinc-950 shadow-sm font-bold'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -61,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => onTabChange('dashboard')}
               className={`h-8 gap-1.5 text-xs font-medium rounded-md transition-all ${
                 activeTab === 'dashboard'
-                  ? 'bg-zinc-100 text-zinc-950 dark:bg-zinc-100 dark:text-zinc-950 shadow-sm'
+                  ? 'bg-zinc-100 text-zinc-950 dark:bg-zinc-100 dark:text-zinc-950 shadow-sm font-bold'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -69,6 +100,27 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Gallery</span>
             </Button>
           </div>
+
+          {/* Fullscreen Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Keluar Fullscreen (Esc)' : 'Mode Fullscreen (Layar Penuh)'}
+            className="h-8 gap-1.5 text-xs border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer"
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Exit Fullscreen</span>
+              </>
+            ) : (
+              <>
+                <Maximize className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Fullscreen</span>
+              </>
+            )}
+          </Button>
 
           <Button
             variant="outline"

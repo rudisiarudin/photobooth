@@ -7,11 +7,9 @@ interface ThemePickerProps {
   disabled?: boolean
 }
 
-const THEME_OPTIONS: { key: ThemeKey; name: string; previewBg: string; previewBorder: string }[] = [
-  { key: 'dark', name: 'Noir Dark', previewBg: THEMES.dark.bg, previewBorder: '#3f3f46' },
-  { key: 'cream', name: 'Warm Cream', previewBg: THEMES.cream.bg, previewBorder: THEMES.cream.border },
-  { key: 'pink', name: 'Pastel Rose', previewBg: THEMES.pink.bg, previewBorder: THEMES.pink.border },
-  { key: 'white', name: 'Minimal White', previewBg: THEMES.white.bg, previewBorder: THEMES.white.border },
+const ALL_THEME_KEYS: ThemeKey[] = [
+  'dark', 'cream', 'pink', 'white', 'lavender',
+  'sage', 'terracotta', 'sky', 'cyber', 'midnight',
 ]
 
 export const ThemePicker: React.FC<ThemePickerProps> = ({
@@ -22,38 +20,43 @@ export const ThemePicker: React.FC<ThemePickerProps> = ({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <label className="text-[10px] font-mono font-semibold uppercase tracking-widest text-muted-foreground">
           Frame Theme
         </label>
-        <span className="text-[10px] text-muted-foreground capitalize">
-          {THEME_OPTIONS.find((t) => t.key === currentTheme)?.name}
+        <span className="text-[10px] text-muted-foreground">
+          {THEMES[currentTheme]?.name}
         </span>
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
-        {THEME_OPTIONS.map((item) => {
-          const isSelected = currentTheme === item.key
+      <div className="grid grid-cols-5 gap-1.5">
+        {ALL_THEME_KEYS.map((key) => {
+          const t = THEMES[key]
+          const isSelected = currentTheme === key
           return (
             <button
-              key={item.key}
+              key={key}
               type="button"
               disabled={disabled}
-              onClick={() => onSelectTheme(item.key)}
-              className={`flex flex-col items-center gap-1.5 rounded-xl border p-2 text-center transition-all cursor-pointer ${
+              onClick={() => onSelectTheme(key)}
+              title={t.name}
+              className={`group flex flex-col items-center gap-1 rounded-lg border p-1.5 text-center transition-all cursor-pointer ${
                 isSelected
-                  ? 'border-primary ring-2 ring-primary/40 bg-primary/5'
-                  : 'border-border/60 hover:border-border hover:bg-muted/30'
-              } ${disabled ? 'opacity-50 pointer-events-none' : ''}`}
+                  ? 'border-white/50 ring-2 ring-white/20 scale-105 shadow-md'
+                  : 'border-border/40 hover:border-border/80 hover:scale-102'
+              } ${disabled ? 'opacity-40 pointer-events-none' : ''}`}
             >
               <div
-                className="h-6 w-full rounded-md shadow-inner border transition-transform group-hover:scale-105"
+                className="h-5 w-full rounded-sm shadow-inner border transition-all group-hover:scale-105"
                 style={{
-                  backgroundColor: item.previewBg,
-                  borderColor: item.previewBorder,
+                  backgroundColor: t.bg,
+                  borderColor: t.border,
+                  boxShadow: isSelected ? `0 0 0 1px ${t.border}` : undefined,
                 }}
               />
-              <span className="text-[10px] font-medium text-foreground line-clamp-1">
-                {item.name}
+              <span className={`text-[9px] font-medium leading-none line-clamp-1 w-full text-center ${
+                isSelected ? 'text-foreground' : 'text-muted-foreground'
+              }`}>
+                {t.name.split(' ')[0]}
               </span>
             </button>
           )

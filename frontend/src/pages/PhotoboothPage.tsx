@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { useCamera } from '@/hooks/useCamera'
 import { usePhotobooth, type StickerItem } from '@/hooks/usePhotobooth'
 import { CameraView } from '@/components/CameraView'
@@ -8,9 +8,8 @@ import { ThemePicker } from '@/components/ThemePicker'
 import { ShotTrack } from '@/components/ShotTrack'
 import { EventSettingsDialog } from '@/components/EventSettingsDialog'
 import { ResultModal } from '@/components/ResultModal'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Camera, RefreshCw, Layers } from 'lucide-react'
+import { Camera, RotateCcw, Layers } from 'lucide-react'
 
 interface PhotoboothPageProps {
   onOpenSettings: boolean
@@ -46,8 +45,11 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
     isSessionRunning,
     countdownNumber,
     currentPoseIndex,
+    retakingPoseIndex,
     requiredPoses,
     resultDataUrl,
+    resultGifUrl,
+    isGeneratingGif,
     showResultModal,
     setShowResultModal,
     isSaving,
@@ -55,10 +57,36 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
     stickers,
     setStickers,
     startSession,
+    retakeSinglePose,
     resetSession,
     regenerateResultWithThemeAndLayout,
     saveToGallery,
   } = usePhotobooth()
+
+  // Fullscreen state
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const boothRef = useRef<HTMLDivElement>(null)
+
+  // Sync fullscreen state with browser events
+  useEffect(() => {
+    const onFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+
+  const handleToggleFullscreen = useCallback(async () => {
+    if (!document.fullscreenElement) {
+      try {
+        await boothRef.current?.requestFullscreen()
+      } catch (e) {
+        console.warn('Fullscreen not available:', e)
+      }
+    } else {
+      document.exitFullscreen()
+    }
+  }, [])
 
   const handleStartCapture = () => {
     startSession(captureFrame, triggerFlash)
@@ -76,7 +104,6 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
   }
 
   const handleAddSticker = (emoji: string) => {
-    // Distribute stickers across the card
     const randomX = Math.floor(Math.random() * 60) + 20
     const randomY = Math.floor(Math.random() * 70) + 15
     const newSticker: StickerItem = {
@@ -97,113 +124,132 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
     regenerateResultWithThemeAndLayout(theme, layout, [])
   }
 
-  return (
-    <div className="container mx-auto max-w-7xl px-4 py-6 sm:px-6">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left: Camera Stage (7 cols) */}
-        <div className="lg:col-span-7 xl:col-span-8 space-y-4">
-          <CameraView
-            videoRef={videoRef}
-            cameraActive={cameraActive}
-            cameraError={cameraError}
-            isMirrored={isMirrored}
-            onToggleMirror={() => setIsMirrored(!isMirrored)}
-            onRetryCamera={startCamera}
-            activeFilter={activeFilter}
-            isFlashing={isFlashing}
-            countdownNumber={countdownNumber}
-            isSessionRunning={isSessionRunning}
-            currentPoseIndex={currentPoseIndex}
-            totalPoses={requiredPoses}
-          />
+  const handleRetakePose = useCallback((index: number) => {
+    retakeSinglePose(index, captureFrame, triggerFlash)
+  }, [retakeSinglePose, captureFrame, triggerFlash])
 
+  const isCapturing = isSessionRunning || retakingPoseIndex !== null
+
+  return (
+    <div ref={boothRef} className="w-full min-h-screen bg-background flex flex-col">
+      {/* === CAMERA PREVIEW — Full Width === */}
+      <div className="w-full px-4 pt-4 pb-2 max-w-5xl mx-auto">
+        <CameraView
+          videoRef={videoRef}
+          cameraActive={cameraActive}
+          cameraError={cameraError}
+          isMirrored={isMirrored}
+          onToggleMirror={() => setIsMirrored(!isMirrored)}
+          onRetryCamera={startCamera}
+          activeFilter={activeFilter}
+          isFlashing={isFlashing}
+          countdownNumber={countdownNumber}
+          isSessionRunning={isCapturing}
+          currentPoseIndex={currentPoseIndex}
+          totalPoses={requiredPoses}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={handleToggleFullscreen}
+          onStartCapture={handleStartCapture}
+          retakingPoseIndex={retakingPoseIndex}
+        />
+      </div>
+
+      {/* === CONTROLS PANEL — Below Camera === */}
+      <div className="w-full max-w-5xl mx-auto px-4 pb-6 space-y-3">
+
+        {/* ---- Filter Bar ---- */}
+        <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm px-4 py-3 shadow-sm">
           <FilterBar
             activeFilter={activeFilter}
             onSelectFilter={setActiveFilter}
-            disabled={isSessionRunning}
+            disabled={isCapturing}
           />
         </div>
 
-        {/* Right: Controls & Presets (5 cols) */}
-        <div className="lg:col-span-5 xl:col-span-4 space-y-4">
-          <Card className="border-border/60 bg-card/60 backdrop-blur-sm shadow-xl">
-            <CardContent className="p-5 space-y-5">
-              {/* Event Header info badge */}
-              <div className="flex items-center justify-between pb-2 border-b border-border/50">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-emerald-400" />
-                  <span className="text-xs font-bold tracking-wide text-foreground">
-                    {eventConfig.title}
-                  </span>
-                </div>
-                <span className="text-[11px] font-mono text-muted-foreground">
-                  {eventConfig.date}
+        {/* ---- Main Controls Grid ---- */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Layout Picker */}
+          <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm p-4 shadow-sm">
+            <LayoutPicker
+              currentLayout={layout}
+              onSelectLayout={handleSelectLayout}
+              disabled={isCapturing}
+            />
+          </div>
+
+          {/* Theme Picker */}
+          <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm p-4 shadow-sm">
+            <ThemePicker
+              currentTheme={theme}
+              onSelectTheme={handleSelectTheme}
+              disabled={isCapturing}
+            />
+          </div>
+
+          {/* Shot Track + Actions */}
+          <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-sm p-4 shadow-sm space-y-3">
+            {/* Event label */}
+            <div className="flex items-center justify-between pb-1 border-b border-border/40">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-400 pulse-ring" />
+                <span className="text-[10px] font-mono font-bold tracking-widest text-foreground uppercase">
+                  {eventConfig.title}
                 </span>
               </div>
+              <span className="text-[9px] font-mono text-muted-foreground">{eventConfig.date}</span>
+            </div>
 
-              {/* Layout Picker */}
-              <LayoutPicker
-                currentLayout={layout}
-                onSelectLayout={handleSelectLayout}
-                disabled={isSessionRunning}
-              />
+            <ShotTrack
+              totalPoses={requiredPoses}
+              currentPoseIndex={currentPoseIndex}
+              isSessionRunning={isCapturing}
+              thumbnails={thumbnails}
+              retakingPoseIndex={retakingPoseIndex}
+              onRetake={thumbnails.length === requiredPoses ? handleRetakePose : undefined}
+            />
 
-              {/* Theme Picker */}
-              <ThemePicker
-                currentTheme={theme}
-                onSelectTheme={handleSelectTheme}
-                disabled={isSessionRunning}
-              />
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-1">
+              <Button
+                size="lg"
+                disabled={!cameraActive || isCapturing}
+                onClick={handleStartCapture}
+                className="w-full h-12 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-bold text-sm shadow-xl shadow-black/30 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer border border-zinc-200 gap-2.5 disabled:opacity-50"
+              >
+                <Camera className="h-4 w-4 stroke-[2]" />
+                <span>
+                  {isCapturing
+                    ? retakingPoseIndex !== null
+                      ? `Retake Pose #${retakingPoseIndex + 1}...`
+                      : `Mengambil Pose #${currentPoseIndex + 1}...`
+                    : 'Mulai Foto (3s Countdown)'}
+                </span>
+              </Button>
 
-              {/* Shot Track (thumbnails of poses) */}
-              <ShotTrack
-                totalPoses={requiredPoses}
-                currentPoseIndex={currentPoseIndex}
-                isSessionRunning={isSessionRunning}
-                thumbnails={thumbnails}
-              />
-
-              {/* Primary Actions */}
-              <div className="pt-2 space-y-2">
-                <Button
-                  size="lg"
-                  disabled={!cameraActive || isSessionRunning}
-                  onClick={handleStartCapture}
-                  className="w-full h-14 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-bold text-sm sm:text-base shadow-xl shadow-black/30 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer border border-zinc-200 gap-2.5 disabled:opacity-50"
-                >
-                  <Camera className="h-5 w-5 stroke-[2]" />
-                  <span>
-                    {isSessionRunning
-                      ? `Mengambil Pose #${currentPoseIndex + 1}...`
-                      : 'Mulai Ambil Foto (3s Countdown)'}
-                  </span>
-                </Button>
-
-                {thumbnails.length > 0 && !isSessionRunning && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowResultModal(true)}
-                      className="border-border/80 gap-1.5 text-xs text-foreground hover:bg-muted/50"
-                    >
-                      <Layers className="h-3.5 w-3.5" />
-                      Lihat Hasil Strip
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={resetSession}
-                      className="text-muted-foreground hover:text-destructive gap-1.5 text-xs"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      Reset Sesi
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+              {thumbnails.length > 0 && !isCapturing && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowResultModal(true)}
+                    className="border-border/70 gap-1.5 text-xs text-foreground hover:bg-muted/50 rounded-lg"
+                  >
+                    <Layers className="h-3.5 w-3.5" />
+                    Lihat Hasil
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetSession}
+                    className="text-muted-foreground hover:text-destructive gap-1.5 text-xs rounded-lg"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset Sesi
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -225,6 +271,8 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
         open={showResultModal}
         onOpenChange={setShowResultModal}
         resultDataUrl={resultDataUrl}
+        resultGifUrl={resultGifUrl}
+        isGeneratingGif={isGeneratingGif}
         currentTheme={theme}
         onChangeTheme={handleSelectTheme}
         onSaveToGallery={saveToGallery}
@@ -237,6 +285,8 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
         stickers={stickers}
         onAddSticker={handleAddSticker}
         onClearStickers={handleClearStickers}
+        thumbnails={thumbnails}
+        onRetakePose={handleRetakePose}
       />
     </div>
   )

@@ -1,5 +1,5 @@
 import React from 'react'
-import { VideoOff, RefreshCw, FlipHorizontal } from 'lucide-react'
+import { VideoOff, RefreshCw, FlipHorizontal, Maximize2, Minimize2, Camera } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FILTERS, type FilterKey } from '@/lib/render'
 
@@ -16,6 +16,10 @@ interface CameraViewProps {
   isSessionRunning: boolean
   currentPoseIndex: number
   totalPoses: number
+  isFullscreen?: boolean
+  onToggleFullscreen?: () => void
+  onStartCapture?: () => void
+  retakingPoseIndex?: number | null
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -31,10 +35,14 @@ export const CameraView: React.FC<CameraViewProps> = ({
   isSessionRunning,
   currentPoseIndex,
   totalPoses,
+  isFullscreen = false,
+  onToggleFullscreen,
+  onStartCapture,
+  retakingPoseIndex = null,
 }) => {
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-border/60 bg-black/90 shadow-2xl">
-      {/* Video element */}
+    <div className="relative w-full overflow-hidden rounded-2xl border border-border/60 bg-black/90 shadow-2xl" style={{ aspectRatio: '4/3' }}>
+      {/* Video element - Always sharp, no blur during capture */}
       <video
         ref={videoRef}
         autoPlay
@@ -50,7 +58,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
       {/* Camera inactive / error state */}
       {(!cameraActive || cameraError) && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-950/95 p-6 text-center text-zinc-300">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-950/95 p-6 text-center text-zinc-300 z-20">
           <div className="rounded-full bg-zinc-800/80 p-4 text-zinc-400">
             <VideoOff className="h-8 w-8" />
           </div>
@@ -78,17 +86,17 @@ export const CameraView: React.FC<CameraViewProps> = ({
         <div className="pointer-events-none absolute inset-0 z-30 bg-white animate-flash" />
       )}
 
-      {/* Countdown overlay */}
+      {/* Countdown overlay - Crystal clear video, NO blur or darkening */}
       {countdownNumber !== null && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="flex h-36 w-36 items-center justify-center rounded-full border-2 border-white/20 bg-zinc-950/80 shadow-2xl ring-8 ring-white/5 animate-pop">
-            <span className="text-8xl font-black tracking-tighter text-white font-mono">
+        <div className="pointer-events-none absolute inset-0 z-25 flex flex-col items-center justify-center">
+          <div className="flex h-32 w-32 items-center justify-center rounded-full border-2 border-white/50 bg-black/40 shadow-[0_0_40px_rgba(0,0,0,0.6)] animate-pop">
+            <span className="text-8xl font-black tracking-tighter text-white font-mono drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
               {countdownNumber}
             </span>
           </div>
-          <div className="mt-5 flex items-center gap-2 rounded-full border border-white/20 bg-black/70 px-4 py-1.5 backdrop-blur-md">
-            <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-            <p className="text-xs font-mono tracking-widest text-white uppercase">
+          <div className="mt-4 flex items-center gap-2 rounded-full border border-white/30 bg-black/60 px-4 py-1.5 shadow-xl">
+            <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-ping" />
+            <p className="text-xs font-mono font-bold tracking-widest text-white uppercase drop-shadow">
               POSE {currentPoseIndex + 1} / {totalPoses}
             </p>
           </div>
@@ -108,12 +116,16 @@ export const CameraView: React.FC<CameraViewProps> = ({
         {isSessionRunning ? (
           <div className="flex items-center gap-2 rounded-full bg-red-600/90 text-white shadow-lg pointer-events-auto px-3.5 py-1 text-xs font-mono font-semibold tracking-wider">
             <span className="h-2 w-2 rounded-full bg-white animate-ping" />
-            <span>REC • POSE {currentPoseIndex + 1} OF {totalPoses}</span>
+            <span>
+              {retakingPoseIndex !== null
+                ? `RETAKE • POSE ${retakingPoseIndex + 1}`
+                : `REC • POSE ${currentPoseIndex + 1} OF ${totalPoses}`}
+            </span>
           </div>
         ) : (
           <div className="flex items-center gap-2 rounded-full bg-zinc-950/80 backdrop-blur-md border border-white/15 px-3 py-1 text-[11px] font-mono tracking-wide text-zinc-300 pointer-events-auto">
             <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            <span>STANDBY • 1080P</span>
+            <span>STANDBY • LIVE</span>
           </div>
         )}
 
@@ -127,13 +139,67 @@ export const CameraView: React.FC<CameraViewProps> = ({
           >
             <FlipHorizontal className="h-4 w-4" />
           </Button>
+
+          {onToggleFullscreen && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onToggleFullscreen}
+              title={isFullscreen ? 'Keluar Fullscreen' : 'Fullscreen Mode'}
+              className="h-8 w-8 rounded-lg border-white/15 bg-zinc-950/80 backdrop-blur-md text-white hover:bg-zinc-800 hover:text-white"
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Phone-Style Camera Shutter Button (floating at bottom center of live preview) */}
+      <div className="absolute bottom-4 inset-x-0 flex flex-col items-center justify-center z-20 pointer-events-none">
+        <div className="pointer-events-auto flex flex-col items-center gap-1.5">
+          {isSessionRunning ? (
+            // Capturing State (Recording indicator)
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="h-16 w-16 sm:h-18 sm:w-18 rounded-full border-4 border-red-500/80 p-1 flex items-center justify-center shadow-[0_4px_24px_rgba(0,0,0,0.8)] bg-black/40 animate-pulse">
+                <div className="h-6 w-6 rounded-md bg-red-500 shadow-md" />
+              </div>
+              <span className="text-[10px] font-mono font-bold tracking-wider text-white uppercase bg-black/60 border border-white/20 px-2.5 py-0.5 rounded-full drop-shadow">
+                {retakingPoseIndex !== null
+                  ? `Retake Pose #${retakingPoseIndex + 1}`
+                  : `Pose ${currentPoseIndex + 1} / ${totalPoses}`}
+              </span>
+            </div>
+          ) : (
+            // Idle State - Phone Camera Shutter Button
+            <div className="flex flex-col items-center gap-1.5">
+              <button
+                type="button"
+                disabled={!cameraActive}
+                onClick={onStartCapture}
+                title="Mulai Foto"
+                className="group relative h-16 w-16 sm:h-18 sm:w-18 rounded-full border-4 border-white/95 p-1 flex items-center justify-center shadow-[0_4px_24px_rgba(0,0,0,0.7)] transition-all duration-200 hover:scale-105 active:scale-90 bg-black/30 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
+              >
+                {/* Inner circular white shutter button */}
+                <div className="h-full w-full rounded-full bg-white shadow-md transition-transform duration-150 group-hover:scale-95 group-active:scale-85 flex items-center justify-center">
+                  <Camera className="h-6 w-6 text-zinc-900 transition-transform group-hover:scale-110" />
+                </div>
+              </button>
+              <span className="text-[10px] font-mono font-bold tracking-wider text-white uppercase bg-black/60 border border-white/20 px-2.5 py-0.5 rounded-full drop-shadow">
+                Mulai Foto ({totalPoses} Pose)
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Bottom Telemetry HUD */}
       <div className="pointer-events-none absolute bottom-3 inset-x-5 flex items-center justify-between text-[10px] font-mono text-white/50 z-10">
-        <span>35MM • F/2.0 • ISO 200</span>
-        <span className="tracking-widest">K-PHOTO LAB 2026</span>
+        <span className="hidden sm:inline">35MM • F/2.0 • ISO 200</span>
+        <span className="tracking-widest hidden sm:inline">K-PHOTO LAB 2026</span>
       </div>
     </div>
   )
