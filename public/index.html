@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>IT Palugada Photobooth — Event Station</title>
+  <meta name="description" content="Photobooth digital interaktif untuk event IT Palugada. Ambil foto, pilih filter, tambah stiker, dan download photostrip instan!">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/qrcode.min.js"></script>
+  <script src="/gifshot.min.js"></script>
+</head>
+<body>
+
+  <main class="shell">
+
+    <!-- ============ HEADER ============ -->
+    <header>
+      <div class="brand">
+        <div class="logo">📸</div>
+        <div>
+          <h1 id="headerTitle">IT PALUGADA</h1>
+          <p id="headerSubtitle">PHOTOBOOTH EVENT STATION</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="toggleSettingsBtn" class="icon-btn">⚙️ Event Setup</button>
+        <a href="/dashboard.html" target="_blank" class="icon-btn">📊 Dashboard ↗</a>
+      </div>
+    </header>
+
+    <!-- ============ EVENT SETTINGS MODAL ============ -->
+    <div id="eventSettingsDrawer" class="hidden" style="position:fixed;inset:0;z-index:60;background:rgba(60,20,25,0.6);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:16px;">
+      <div class="settings-drawer" style="width:100%;max-width:420px;">
+        <div class="drawer-header">
+          <h3>⚙️ Pengaturan Event &amp; Template</h3>
+          <button id="closeSettingsBtn" class="close-btn">✕</button>
+        </div>
+        <div class="form-group">
+          <label>Nama Event / Brand:</label>
+          <input type="text" id="eventTitleInput" placeholder="Contoh: IT Palugada">
+        </div>
+        <div class="form-group">
+          <label>Sub-judul / Tagline:</label>
+          <input type="text" id="eventSubtitleInput" placeholder="Contoh: Tech Carnival 2026">
+        </div>
+        <div class="form-group">
+          <label>Keterangan Tanggal / Lokasi:</label>
+          <input type="text" id="eventDateInput" placeholder="Otomatis tanggal hari ini jika kosong">
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:4px;">
+          <button id="saveSettingsBtn" class="btn btn-primary" style="width:auto;padding:10px 24px;">
+            💾 Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ MAIN WORKSPACE ============ -->
+    <div class="booth-container">
+
+      <!-- LEFT: Camera Section -->
+      <div class="camera-section">
+
+        <!-- Camera Viewport -->
+        <div class="camera-card" id="cameraCard">
+          <video id="video" autoplay playsinline muted></video>
+
+          <!-- Flash overlay -->
+          <div id="flash" class="flash-effect"></div>
+
+          <!-- Countdown -->
+          <div id="countdown" class="countdown hidden">
+            <span id="countdownNumber" class="countdown-number">3</span>
+          </div>
+
+          <!-- Pose Indicator -->
+          <div id="poseIndicator" class="pose-indicator hidden">
+            Pose <span id="currentPose">1</span> / <span id="maxPose">4</span>
+          </div>
+
+          <!-- Bottom Hint -->
+          <div class="camera-overlay">
+            <span id="cameraHint" class="camera-hint">Kamera siap diaktifkan ✨</span>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+          <span class="filter-bar-label">🎞 Filter Kamera Real-Time</span>
+          <div class="filter-picker">
+            <button type="button" class="choice-btn filter-btn active" data-filter="normal">Normal</button>
+            <button type="button" class="choice-btn filter-btn" data-filter="bw">B &amp; W</button>
+            <button type="button" class="choice-btn filter-btn" data-filter="vintage">Vintage</button>
+            <button type="button" class="choice-btn filter-btn" data-filter="glow">Soft Glow</button>
+          </div>
+        </div>
+
+      </div><!-- /camera-section -->
+
+      <!-- RIGHT: Controls Panel -->
+      <div class="controls-panel">
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+          <div class="status-left">
+            <span id="statusDot" class="dot"></span>
+            <span id="statusText" class="status-text">Menunggu kamera...</span>
+          </div>
+          <span class="version-badge">Web Station v2</span>
+        </div>
+
+        <!-- Start Camera Button (shown before camera active) -->
+        <button id="startCamBtn" class="btn btn-primary">
+          <span>📷</span> Aktifkan Kamera
+        </button>
+
+        <!-- Action Group (visible once camera active) -->
+        <div id="actionGroup" class="hidden" style="display:flex;flex-direction:column;gap:18px;">
+
+          <!-- Layout Template Selector -->
+          <div class="setting-row">
+            <span class="setting-label">
+              🖼 Pilih Layout Template
+              <span id="layoutInfoTag" style="font-size:10px;font-weight:500;color:var(--muted);margin-left:auto;text-transform:none;letter-spacing:0;">Strip 4 • 4 Pose</span>
+            </span>
+            <div class="layout-grid">
+
+              <!-- Strip 4 (2x6) -->
+              <button type="button" class="layout-card active" data-layout="strip4" data-poses="4">
+                <div class="layout-preview" style="width:28px;height:44px;">
+                  <span></span><span></span><span></span><span></span>
+                </div>
+                <span class="layout-name">Strip 4</span>
+                <span class="layout-size">2 × 6"</span>
+              </button>
+
+              <!-- Strip 3 (2x6) -->
+              <button type="button" class="layout-card" data-layout="strip3" data-poses="3">
+                <div class="layout-preview" style="width:28px;height:44px;justify-content:space-evenly;">
+                  <span style="height:7px;"></span><span style="height:7px;"></span><span style="height:7px;"></span>
+                </div>
+                <span class="layout-name">Strip 3</span>
+                <span class="layout-size">2 × 6"</span>
+              </button>
+
+              <!-- Grid 2x2 (4x6) -->
+              <button type="button" class="layout-card" data-layout="grid4" data-poses="4">
+                <div class="layout-preview" style="width:38px;height:44px;display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:3px;">
+                  <span style="height:100%;"></span><span style="height:100%;"></span>
+                  <span style="height:100%;"></span><span style="height:100%;"></span>
+                </div>
+                <span class="layout-name">Grid 2×2</span>
+                <span class="layout-size">4 × 6"</span>
+              </button>
+
+            </div>
+          </div>
+
+          <!-- Frame Theme Color -->
+          <div class="setting-row">
+            <span class="setting-label">🎨 Warna Frame</span>
+            <div class="theme-picker">
+              <button type="button" class="choice-btn theme-btn active" data-theme="dark">🌑 Dark</button>
+              <button type="button" class="choice-btn theme-btn" data-theme="cream">🧈 Cream</button>
+              <button type="button" class="choice-btn theme-btn" data-theme="pink">🌸 Pink</button>
+              <button type="button" class="choice-btn theme-btn" data-theme="white">🤍 White</button>
+            </div>
+          </div>
+
+          <!-- Start Capture Button -->
+          <button id="startSessionBtn" class="btn btn-capture">
+            <span>✨</span>
+            <span>Mulai Sesi Foto</span>
+            <span id="btnPoseCountText" style="font-size:11px;background:rgba(255,255,255,0.18);padding:2px 9px;border-radius:99px;font-weight:600;">(4 Pose)</span>
+          </button>
+
+        </div><!-- /actionGroup -->
+
+        <!-- Shot Progress Thumbnails -->
+        <div id="shotsTrack" class="shots-track hidden">
+          <div class="shot-box" id="thumb-1">1</div>
+          <div class="shot-box" id="thumb-2">2</div>
+          <div class="shot-box" id="thumb-3">3</div>
+          <div class="shot-box" id="thumb-4">4</div>
+        </div>
+
+      </div><!-- /controls-panel -->
+
+    </div><!-- /booth-container -->
+
+    <!-- ============ RESULT MODAL ============ -->
+    <div id="resultModal" class="result-modal-bg hidden">
+      <div class="result-modal">
+
+        <!-- Header -->
+        <div class="result-header">
+          <div>
+            <h3>🎉 Sesi Selesai!</h3>
+            <p>Kustomisasi stiker, retake foto, atau download Photostrip &amp; Animated GIF.</p>
+          </div>
+          <button id="closeModalBtn" class="close-btn">✕</button>
+        </div>
+
+        <!-- 1. Retake Selector -->
+        <div class="retake-section">
+          <div class="section-title">
+            <span>📸 Retake Foto</span>
+            <span style="font-size:10px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;">Klik tombol di bawah foto</span>
+          </div>
+          <div id="retakeCardsRow" class="retake-cards-row"></div>
+        </div>
+
+        <!-- 2. Sticker Drawer -->
+        <div class="sticker-section">
+          <div class="section-title">
+            <span>✨ Tempel Stiker Lucu</span>
+            <button id="clearStickersBtn" class="clear-stickers-btn">🗑 Hapus Semua</button>
+          </div>
+          <div class="sticker-scroll" id="stickerPicker">
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="🕶️">🕶️</button>
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="👑">👑</button>
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="❤️">❤️</button>
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="✨">✨</button>
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="🎀">🎀</button>
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="🐱">🐱</button>
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="🔥">🔥</button>
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="🌸">🌸</button>
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="🎉">🎉</button>
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="🦋">🦋</button>
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="🌙">🌙</button>
+            <button type="button" class="sticker-btn sticker-add-btn" data-emoji="⭐">⭐</button>
+          </div>
+        </div>
+
+        <!-- 3. Preview Grid: Strip + GIF + QR -->
+        <div class="result-display-grid">
+
+          <!-- Photostrip Preview with Sticker Layer -->
+          <div class="strip-preview-wrap">
+            <span class="strip-preview-label">🎞 Lembar Photostrip (Geser stiker)</span>
+            <div id="stripPreviewContainer" class="strip-preview-frame">
+              <img id="finalStripImg" alt="Hasil Photostrip">
+              <div id="stickerLayer" style="position:absolute;inset:0;pointer-events:auto;"></div>
+            </div>
+          </div>
+
+          <!-- Animated GIF Preview -->
+          <div class="gif-wrap">
+            <span class="strip-preview-label">🎞️ Animated GIF</span>
+            <div class="gif-preview-frame">
+              <img id="gifPreviewImg" alt="GIF Animasi">
+            </div>
+            <a id="downloadGifBtn" class="download-link" download="photobooth-animated.gif">⬇ Download GIF</a>
+          </div>
+
+          <!-- QR Code Kiosk -->
+          <div class="qr-container">
+            <span class="qr-title">📱 Scan untuk Simpan</span>
+            <div class="qr-box">
+              <div id="qrcodeBox" style="width:120px;height:120px;display:flex;align-items:center;justify-content:center;"></div>
+            </div>
+            <p class="qr-hint">Scan dengan kamera HP untuk simpan foto full resolusi</p>
+            <a id="directLink" href="#" target="_blank" class="direct-link">Buka Tautan Langsung ↗</a>
+          </div>
+
+        </div><!-- /result-display-grid -->
+
+        <!-- Bottom Action Buttons -->
+        <div class="btn-group">
+          <a id="downloadBtn" class="btn btn-secondary" download="photostrip.jpg">
+            💾 Simpan Photostrip
+          </a>
+          <button id="restartBtn" class="btn btn-primary">
+            ↻ Sesi Baru
+          </button>
+        </div>
+
+      </div><!-- /result-modal -->
+    </div><!-- /resultModal bg -->
+
+  </main>
+
+  <canvas id="helperCanvas" hidden></canvas>
+  <script src="/app.js"></script>
+
+  <!-- Fix hidden display for eventSettingsDrawer (override Tailwind hidden) -->
+  <script>
+    // Ensure modal shows correctly
+    const _drawer = document.getElementById('eventSettingsDrawer');
+    const _toggleBtn = document.getElementById('toggleSettingsBtn');
+    const _closeBtn = document.getElementById('closeSettingsBtn');
+    if (_drawer && _toggleBtn && _closeBtn) {
+      _toggleBtn.addEventListener('click', () => {
+        _drawer.style.display = _drawer.style.display === 'flex' ? 'none' : 'flex';
+      });
+      _closeBtn.addEventListener('click', () => {
+        _drawer.style.display = 'none';
+      });
+      _drawer.addEventListener('click', (e) => {
+        if (e.target === _drawer) _drawer.style.display = 'none';
+      });
+    }
+
+    // Animate countdown number on each tick
+    const _countdownEl = document.getElementById('countdown');
+    const _numEl = document.getElementById('countdownNumber');
+    if (_countdownEl && _numEl) {
+      const observer = new MutationObserver(() => {
+        _numEl.style.animation = 'none';
+        void _numEl.offsetHeight;
+        _numEl.style.animation = 'countdownPop 1s var(--ease-spring) forwards';
+      });
+      observer.observe(_countdownEl, { childList: true, subtree: true, characterData: true });
+    }
+  </script>
+</body>
+</html>

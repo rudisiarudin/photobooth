@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dashboard — IT Palugada Photobooth</title>
+  <meta name="description" content="Galeri semua hasil foto sesi photobooth IT Palugada Event Station.">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="shell">
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="logo">🎞️</div>
+      <div>
+        <h1>IT Palugada</h1>
+        <p>Station Dashboard</p>
+      </div>
+    </div>
+    <a class="secondary" href="/">← Kembali ke Kamera</a>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div>
+      <span class="eyebrow">Event Station</span>
+      <h2>Galeri Foto 📷</h2>
+      <p>Semua capture yang tersimpan di PC ini.</p>
+    </div>
+    <button id="refresh" class="secondary">↻ Refresh</button>
+  </section>
+
+  <!-- Gallery -->
+  <section id="gallery" class="gallery">
+    <div class="empty">⏳ Memuat galeri…</div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <span id="count">0 foto</span>
+    <span>IT Palugada Photobooth ✨</span>
+  </footer>
+
+</main>
+
+<script>
+  const gallery = document.querySelector('#gallery');
+  const count   = document.querySelector('#count');
+
+  async function load() {
+    try {
+      const r = await fetch('/api/captures', { cache: 'no-store' });
+      const d = await r.json();
+      count.textContent = `${d.captures.length} foto tersimpan`;
+      if (d.captures.length === 0) {
+        gallery.innerHTML = '<div class="empty">🌸 Belum ada foto. Buka halaman Kamera untuk mulai sesi foto.</div>';
+        return;
+      }
+      gallery.innerHTML = d.captures.map(x => `
+        <article class="shot">
+          <img src="${x.url}" alt="${x.name}" loading="lazy">
+          <div>
+            <small>${new Date(x.createdAt).toLocaleString('id-ID', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</small>
+            <a download href="${x.url}">⬇ Simpan</a>
+          </div>
+        </article>
+      `).join('');
+    } catch (err) {
+      gallery.innerHTML = '<div class="empty">⚠️ Gagal memuat galeri. Coba refresh.</div>';
+    }
+  }
+
+  document.querySelector('#refresh').onclick = load;
+  load();
+  setInterval(load, 5000);
+</script>
+</body>
+</html>
