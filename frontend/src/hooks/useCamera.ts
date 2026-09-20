@@ -35,9 +35,28 @@ const EXTERNAL_KEYWORDS = [
 
 function isExternalDevice(label: string): boolean {
   const lower = label.toLowerCase()
-  // Exclude typical built-in front/back tablet/phone cameras
-  if (lower.includes('front') || lower.includes('facing front') || lower.includes('user') || lower.includes('integrated') || lower.includes('built-in')) {
+  // Exclude typical built-in front/back tablet/phone/laptop internal cameras
+  if (
+    lower.includes('front') ||
+    lower.includes('facing front') ||
+    lower.includes('user') ||
+    lower.includes('integrated') ||
+    lower.includes('built-in') ||
+    lower.includes('internal')
+  ) {
     return false
+  }
+  // USB capture cards (including MS2130 / MS2109 'USB3 .0 Video (345f:2130)')
+  if (
+    lower.includes('usb') ||
+    lower.includes('capture') ||
+    lower.includes('hdmi') ||
+    lower.includes('cam link') ||
+    lower.includes('2130') ||
+    lower.includes('2109') ||
+    lower.includes('external')
+  ) {
+    return true
   }
   return EXTERNAL_KEYWORDS.some((kw) => lower.includes(kw))
 }
