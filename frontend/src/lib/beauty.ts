@@ -182,8 +182,12 @@ export function smoothSkin(
   }
 
   // Radius scales with resolution so the preview and the full-size capture match.
+  // 0.018 was picked from scripts/sweep-radius.mjs: it is the largest radius that
+  // still gives a clearly visible softening (≈2 levels of change on flat skin)
+  // while keeping the eye-adjacent skin within ±0.5 levels — i.e. no halo. Wider
+  // radii darken the skin around the eyes; narrower ones do nothing.
   const minDim = Math.min(width, height)
-  const radius = Math.max(2, Math.round(minDim * 0.022 * (0.5 + amount)))
+  const radius = Math.max(1, Math.round(minDim * 0.018 * (0.5 + amount)))
   const passes = amount > 0.6 ? 3 : 2
 
   const blur = (plane: Float32Array): Float32Array => {
@@ -200,6 +204,35 @@ export function smoothSkin(
   const blurR = blur(srcR.slice())
   const blurG = blur(srcG.slice())
   const blurB = blur(srcB.slice())
+
+  // Edge map of "non-skin" features (eyes, lashes, brows, lips, hairline), built
+  // from the ORIGINAL pixels. The blur is clamped back to each pixel's own
+  // neighbourhood so dark features can never travel onto the skin — this is what
+  // removes the grey halo around the eyes.
+  const minNeighbour = new Float32Array(pixels)
+  for (let i = 0, p = 0; i < pixels; i++, p += 4) {
+    const r = srcR[i]
+    const g = srcG[i]
+    const b = srcB[i]
+    const y = 0.299 * r + 0.587 * g + 0.114 * b
+    const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b
+    const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b
+    // A pixel is "not skin" if it is much darker or lighter than skin, or sits
+    // outside the skin chroma window (eyes/brows/lashes are near-neutral dark).
+    const chromaOut = 1 - Math.min(1, Math.max(0, Math.min(cb - 70, 134 - cb, cr - 126, 180 - cr) / 20))
+    const lumOut = Math.max(
+      1 - Math.max(0, Math.min(y - 18, 252 - y) / 26),
+      0
+    )
+    const feature = Math.max(chromaOut, lumOut)
+    minNeighbour[i] = feature
+  }
+  {
+    const tmp = new Float32Array(pixels)
+    const mr = Math.max(1, Math.round(radius * 1.5))
+    boxBlurHorizontal(minNeighbour, tmp, width, height, mr)
+    boxBlurVertical(tmp, minNeighbour, width, height, mr)
+  }
 
   for (let i = 0, p = 0; i < pixels; i++, p += 4) {
     // Blend strength = skin confidence × user amount.
@@ -228,9 +261,22 @@ export function smoothSkin(
       if (m <= 0.002) continue
     }
 
-    data[p] = lerp(srcR[i], blurR[i], m)
-    data[p + 1] = lerp(srcG[i], blurG[i], m)
-    data[p + 2] = lerp(srcB[i], blurB[i], m)
+    // Halo guard: pull each blurred channel back toward the pixel's own value in
+    // proportion to how much non-skin feature sits in its neighbourhood. Near an
+    // eye the neighbourhood is dominated by "feature", so the blur is rejected
+    // almost entirely and the skin keeps its own brightness.
+    const halo = clamp01(minNeighbour[i] * 1.6)
+    if (halo > 0.001) {
+      m *= 1 - halo
+      if (m <= 0.002) continue
+    }
+
+    const r0 = srcR[i]
+    const g0 = srcG[i]
+    const b0 = srcB[i]
+    data[p] = lerp(r0, blurR[i], m)
+    data[p + 1] = lerp(g0, blurG[i], m)
+    data[p + 2] = lerp(b0, blurB[i], m)
   }
 }
 

@@ -77,25 +77,30 @@ export type FilterKey =
 
 /**
  * Skin-smoothing amount baked into the captured frame, per filter.
- * 0 disables smoothing entirely. Portrait-style looks sit around 0.5–0.75;
- * heavy stylised looks (noir, cyber) stay near 0 so they don't look plastic.
+ *
+ * These sit around 0.40–0.60 deliberately. Two measured limits shape the range
+ * (see scripts/sweep-radius.mjs):
+ *   below ~0.35 the pores barely move and the filter reads as a no-op;
+ *   above ~0.70 the blur starts visibly darkening the skin around the eyes.
+ * Inside the range the halo guard in smoothSkin() holds the eye area steady, so
+ * the amount only controls how far flat skin is softened.
  */
 export const FILTER_SMOOTHING: Record<FilterKey, number> = {
   normal:    0.00,
-  bw:        0.35,
-  noir:      0.20,
-  vintage:   0.45,
-  kodak:     0.55,
-  fuji:      0.65,
-  cinematic: 0.50,
-  glow:      0.70,
-  pastel:    0.65,
-  cyber:     0.15,
-  lomo:      0.40,
-  warm:      0.60,
-  cold:      0.50,
-  haze:      0.55,
-  vivid:     0.45,
+  bw:        0.42,
+  noir:      0.30,
+  vintage:   0.46,
+  kodak:     0.50,
+  fuji:      0.55,
+  cinematic: 0.48,
+  glow:      0.60,
+  pastel:    0.52,
+  cyber:     0.20,
+  lomo:      0.44,
+  warm:      0.52,
+  cold:      0.48,
+  haze:      0.50,
+  vivid:     0.46,
 }
 
 /** Colour-grade look paired with each filter (see lib/beauty.ts). */
