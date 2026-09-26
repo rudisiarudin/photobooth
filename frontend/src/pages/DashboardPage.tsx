@@ -1,3 +1,4 @@
+import { deleteCapture } from '@/lib/captureStore'
 import React, { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,7 +16,7 @@ import {
   Calendar,
   Eye,
   ExternalLink,
-} from 'lucide-react'
+  Trash2,} from 'lucide-react'
 
 interface CaptureItem {
   name: string
@@ -82,6 +83,14 @@ export const DashboardPage: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit',
     })
+  }
+
+  const handleDelete = (name: string) => {
+    if (!window.confirm('Hapus foto ini dari gallery?')) return
+    if (deleteCapture(name)) {
+      setCaptures((prev) => prev.filter((c) => c.name !== name))
+      setSelectedPhoto((prev) => (prev && prev.name === name ? null : prev))
+    }
   }
 
   return (
@@ -192,9 +201,19 @@ export const DashboardPage: React.FC = () => {
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-foreground"
                     >
-                      <ExternalLink className="h-3 w-3" />
+                      <ExternalLink className="w-3 h-3" />
                     </Button>
                   </a>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDelete(item.name)}
+                    title="Hapus foto ini"
+                    aria-label={`Hapus ${item.name}`}
+                    className="h-7 w-7 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>

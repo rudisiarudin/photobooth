@@ -7,6 +7,7 @@ import {
   renderPhotostripByLayout,
 } from '@/lib/render'
 import { soundEffects } from '@/lib/sound'
+import { saveCapture } from '@/lib/captureStore'
 
 export interface StickerItem {
   id: string
@@ -62,6 +63,7 @@ export function usePhotobooth() {
   const [showResultModal, setShowResultModal] = useState<boolean>(false)
   const [isSaving, setIsSaving] = useState<boolean>(false)
   const [savedInfo, setSavedInfo] = useState<{ name: string; url: string; directUrl?: string } | null>(null)
+  const [storageError, setStorageError] = useState<string | null>(null)
   const [stickers, setStickers] = useState<StickerItem[]>([])
 
   const cancelSessionRef = useRef<boolean>(false)
@@ -80,6 +82,7 @@ export function usePhotobooth() {
     setResultGifUrl(null)
     setShowResultModal(false)
     setSavedInfo(null)
+    setStorageError(null)
     setStickers([])
   }, [])
 
@@ -147,7 +150,11 @@ export function usePhotobooth() {
         setIsSaving(false)
       }
 
-      // Fallback: save to client-side localStorage so it works on static hosts like Vercel
+      // Fallback: save to client-side localStorage so it works on static hosts like Vercel.
+      // captureStore evicts the oldest photos when the quota is hit, and reports
+      // back what it had to drop. We must not claim success when the write failed
+      // — previously setSavedInfo() ran unconditionally, so a full storage showed
+      // "saved" while the photo was silently gone.
       const filename = `photo-${new Date().toISOString().replace(/[:.]/g, '-')}.jpg`
       const fallbackCapture = {
         name: filename,
@@ -155,14 +162,18 @@ export function usePhotobooth() {
         size: Math.round((urlToSave.length * 3) / 4),
         createdAt: new Date().toISOString(),
       }
-      try {
-        const stored = JSON.parse(localStorage.getItem('itpalugada_captures') || '[]')
-        localStorage.setItem(
-          'itpalugada_captures',
-          JSON.stringify([fallbackCapture, ...stored.slice(0, 49)])
+      const outcome = saveCapture(fallbackCapture)
+      if (outcome.status === 'failed') {
+        setStorageError(
+          'Penyimpanan tablet penuh — foto ini tidak bisa disimpan. Foto lama dihapus otomatis.'
         )
-      } catch (e) {
-        console.warn('LocalStorage save error:', e)
+        setSavedInfo(null)
+        return null
+      }
+      if (outcome.evicted.length > 0) {
+        setStorageError(
+          `Penyimpanan penuh — ${outcome.evicted.length} foto lama dihapus otomatis.`
+        )
       }
       setSavedInfo(fallbackCapture)
       return fallbackCapture
@@ -354,6 +365,8 @@ export function usePhotobooth() {
     setShowResultModal,
     isSaving,
     savedInfo,
+    storageError,
+    setStorageError,
     stickers,
     setStickers,
     startSession,

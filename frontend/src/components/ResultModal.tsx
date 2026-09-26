@@ -26,7 +26,7 @@ import {
   Image,
   Loader2,
   RotateCcw,
-} from 'lucide-react'
+  AlertTriangle,} from 'lucide-react'
 
 interface ResultModalProps {
   open: boolean
@@ -38,6 +38,7 @@ interface ResultModalProps {
   onChangeTheme: (theme: ThemeKey) => void
   onSaveToGallery: () => Promise<{ name: string; url: string; directUrl?: string } | null>
   savedInfo: { name: string; url: string; directUrl?: string } | null
+  storageError?: string | null
   isSaving: boolean
   onNewSession: () => void
   stickers: StickerItem[]
@@ -68,6 +69,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
   onChangeTheme,
   onSaveToGallery,
   savedInfo,
+  storageError = null,
   isSaving: _isSaving,
   onNewSession,
   stickers,
@@ -568,6 +570,16 @@ export const ResultModal: React.FC<ResultModalProps> = ({
                   Cetak Foto
                 </Button>
               </div>
+
+              {storageError && (
+                <div
+                  role="status"
+                  className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] leading-snug text-amber-200"
+                >
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+                  <span>{storageError}</span>
+                </div>
+              )}
 
               <Button
                 variant="ghost"

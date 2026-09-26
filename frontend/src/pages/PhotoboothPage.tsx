@@ -63,6 +63,7 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
     setShowResultModal,
     isSaving,
     savedInfo,
+    storageError,
     stickers,
     setStickers,
     startSession,
@@ -502,6 +503,7 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
         onChangeTheme={handleSelectTheme}
         onSaveToGallery={saveToGallery}
         savedInfo={savedInfo}
+        storageError={storageError}
         isSaving={isSaving}
         onNewSession={() => {
           setShowResultModal(false)
