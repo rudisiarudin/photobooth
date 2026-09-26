@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React from 'react'
 import {
   VideoOff,
   RefreshCw,
@@ -6,14 +6,8 @@ import {
   Maximize2,
   Minimize2,
   Camera,
-  Video,
-  ChevronDown,
   Usb,
-  SwitchCamera,
-  Info,
   Wifi,
-  Globe,
-  Smartphone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FILTERS, type FilterKey } from '@/lib/render'
@@ -39,16 +33,12 @@ interface CameraViewProps {
   // External camera device selection
   videoDevices?: VideoDevice[]
   selectedDeviceId?: string | null
-  onSwitchCamera?: (deviceId: string) => void
-  onCycleCamera?: () => void
   onRefreshDevices?: () => void
   // Whether current feed is from an external/HDMI capture card
   isExternalCamera?: boolean
-  // IP Stream Mode (Android / IP Webcam app)
+  // Read-only status flag only: camera switching and IP stream controls live
+  // in Settings, so the kiosk page stays light while the stream is live.
   isIpStreamMode?: boolean
-  ipStreamUrl?: string
-  onConnectIpStream?: (url: string) => Promise<void>
-  onDisconnectIpStream?: () => Promise<void>
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -70,45 +60,11 @@ export const CameraView: React.FC<CameraViewProps> = ({
   retakingPoseIndex = null,
   videoDevices = [],
   selectedDeviceId,
-  onSwitchCamera,
-  onCycleCamera,
   onRefreshDevices,
   isExternalCamera = false,
   isIpStreamMode = false,
-  ipStreamUrl = '',
-  onConnectIpStream,
-  onDisconnectIpStream,
 }) => {
-  const [showDeviceMenu, setShowDeviceMenu] = useState(false)
-  const [showHelp, setShowHelp] = useState(false)
-  const [showStreamInput, setShowStreamInput] = useState(false)
-  const [streamInputUrl, setStreamInputUrl] = useState(ipStreamUrl || 'http://localhost:8080/video')
-  const menuRef = useRef<HTMLDivElement>(null)
-
   const currentDevice = videoDevices.find((d) => d.deviceId === selectedDeviceId)
-  const hasMultipleDevices = videoDevices.length > 1
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowDeviceMenu(false)
-      }
-    }
-    if (showDeviceMenu) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showDeviceMenu])
-
-  const handleToggleMenu = async () => {
-    if (onRefreshDevices) {
-      onRefreshDevices()
-    }
-    setShowDeviceMenu((prev) => !prev)
-  }
 
   return (
     <div
@@ -132,7 +88,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
           isMirrored ? '-scale-x-100' : ''
         }`}
         style={{
-          filter: FILTERS[activeFilter] !== 'none' ? FILTERS[activeFilter] : undefined,
+          filter: FILTERS[activeFilter].css !== 'none' ? FILTERS[activeFilter].css : undefined,
         }}
       />
 
@@ -223,227 +179,36 @@ export const CameraView: React.FC<CameraViewProps> = ({
             </span>
           </div>
         ) : (
-          /* Camera device selector — shown in standby */
-          <div className="relative pointer-events-auto" ref={menuRef}>
-            <button
-              type="button"
-              onClick={handleToggleMenu}
-              className={`flex items-center gap-2 rounded-full backdrop-blur-md border px-3 py-1 text-[11px] font-mono tracking-wide transition-all cursor-pointer shadow-lg ${
-                currentDevice?.isHdmiCapture
-                  ? 'bg-violet-950/80 border-violet-500/40 text-violet-200 hover:bg-violet-900/80'
-                  : 'bg-zinc-950/85 border-white/20 text-zinc-200 hover:bg-zinc-850'
-              }`}
-              title="Klik untuk memilih kamera (Sony A6000 / HDMI / Webcam)"
-            >
-              {currentDevice?.isHdmiCapture ? (
-                <Usb className="h-3.5 w-3.5 text-violet-400 shrink-0 animate-pulse" />
-              ) : (
-                <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
-              )}
-              <span className="max-w-[150px] truncate font-medium">
-                {currentDevice ? currentDevice.label : 'Pilih Kamera'}
-              </span>
-              <ChevronDown className="h-3 w-3 opacity-70 shrink-0" />
-            </button>
-
-            {/* Device dropdown menu */}
-            {showDeviceMenu && (
-              <div
-                className="absolute top-full mt-2 left-0 min-w-[280px] max-w-[340px] rounded-xl bg-zinc-950/95 border border-white/20 shadow-2xl backdrop-blur-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150"
-              >
-                <div className="px-3.5 py-2.5 border-b border-white/10 flex items-center justify-between bg-white/[0.03]">
-                  <p className="text-[11px] font-mono font-bold tracking-wider text-zinc-300 uppercase">
-                    Pilih Sumber Kamera
-                  </p>
-                  <span className="text-[10px] font-mono text-zinc-500">
-                    {videoDevices.length} terdeteksi
-                  </span>
-                </div>
-
-                <div className="max-h-60 overflow-y-auto divide-y divide-white/5">
-                  {videoDevices.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-zinc-400 space-y-2">
-                      <p>Memindai perangkat kamera...</p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onRefreshDevices && onRefreshDevices()}
-                        className="text-xs h-7 gap-1.5 border-white/20 text-zinc-200"
-                      >
-                        <RefreshCw className="h-3 w-3" />
-                        Pindai Ulang
-                      </Button>
-                    </div>
-                  ) : (
-                    videoDevices.map((device, idx) => (
-                      <button
-                        key={device.deviceId || idx}
-                        type="button"
-                        onClick={() => {
-                          if (onSwitchCamera) onSwitchCamera(device.deviceId)
-                          setShowDeviceMenu(false)
-                        }}
-                        className={`w-full flex items-center gap-3 px-3.5 py-3 text-left font-mono transition-colors hover:bg-white/10 cursor-pointer ${
-                          device.deviceId === selectedDeviceId
-                            ? 'bg-violet-500/15 text-white'
-                            : 'text-zinc-300'
-                        }`}
-                      >
-                        {device.isHdmiCapture ? (
-                          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-violet-500/25 border border-violet-400/40 shrink-0 text-violet-300">
-                            <Usb className="h-4 w-4" />
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 shrink-0 text-emerald-400">
-                            <Video className="h-4 w-4" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate text-xs font-semibold leading-snug">
-                            {device.label || `Camera ${idx + 1}`}
-                          </p>
-                          <p className="text-[10px] text-zinc-400 leading-tight mt-0.5">
-                            {device.isHdmiCapture
-                              ? '📹 HDMI Capture Card (Sony A6000)'
-                              : '💻 Kamera Tablet / Internal'}
-                          </p>
-                        </div>
-                        {device.deviceId === selectedDeviceId && (
-                          <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
-                        )}
-                      </button>
-                    ))
-                  )}
-                </div>
-
-                {/* IP Stream active indicator if connected */}
-                {isIpStreamMode && (
-                  <div className="px-3.5 py-2 border-t border-emerald-500/20 bg-emerald-500/10 flex items-center justify-between text-[11px] text-emerald-400">
-                    <span className="flex items-center gap-1.5 truncate">
-                      <Wifi className="h-3.5 w-3.5 shrink-0 animate-pulse" />
-                      <span className="truncate">IP Stream: {ipStreamUrl}</span>
-                    </span>
-                    {onDisconnectIpStream && (
-                      <button
-                        type="button"
-                        onClick={onDisconnectIpStream}
-                        className="ml-2 text-[10px] text-rose-400 hover:underline shrink-0"
-                      >
-                        Disconnect
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Dropdown footer with refresh, IP Stream, & tips */}
-                <div className="px-3.5 py-2 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-[10px] text-zinc-400 font-mono">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onRefreshDevices) onRefreshDevices()
-                    }}
-                    className="flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer"
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                    <span>Scan Ulang</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowStreamInput((prev) => !prev)}
-                    className="flex items-center gap-1 text-sky-400 hover:text-sky-300 transition-colors cursor-pointer"
-                  >
-                    <Globe className="h-3 w-3" />
-                    <span>IP / Android</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowHelp((prev) => !prev)}
-                    className="flex items-center gap-1 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
-                  >
-                    <Info className="h-3 w-3" />
-                    <span>Panduan</span>
-                  </button>
-                </div>
-
-                {/* IP Stream Input Box */}
-                {showStreamInput && (
-                  <div className="p-3 bg-zinc-900 border-t border-sky-500/30 text-xs space-y-2">
-                    <div className="flex items-center gap-1.5 text-sky-300 font-semibold text-[11px]">
-                      <Smartphone className="h-3.5 w-3.5" />
-                      <span>Stream URL (Aplikasi USB Camera / IP Webcam)</span>
-                    </div>
-                    <p className="text-[10px] text-zinc-400">
-                      Masukkan URL stream dari aplikasi di tablet atau PC lokal:
-                    </p>
-                    <div className="flex gap-1.5">
-                      <input
-                        type="text"
-                        value={streamInputUrl}
-                        onChange={(e) => setStreamInputUrl(e.target.value)}
-                        placeholder="http://localhost:8080/video"
-                        className="flex-1 bg-black/60 border border-white/20 rounded px-2 py-1 text-xs text-white font-mono placeholder:text-zinc-600 focus:outline-none focus:border-sky-400"
-                      />
-                      <Button
-                        size="sm"
-                        className="h-7 px-2.5 text-[10px] bg-sky-600 hover:bg-sky-500 text-white"
-                        onClick={() => {
-                          if (onConnectIpStream && streamInputUrl) {
-                            onConnectIpStream(streamInputUrl)
-                            setShowDeviceMenu(false)
-                          }
-                        }}
-                      >
-                        Connect
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Expandable Help Inside Dropdown */}
-                {showHelp && (
-                  <div className="p-3 bg-amber-950/40 border-t border-amber-500/30 text-[10px] text-amber-200/90 space-y-2">
-                    <p className="font-bold text-amber-300 flex items-center gap-1">
-                      <Smartphone className="h-3 w-3" />
-                      Kenapa Tablet Android tidak mendeteksi USB di browser?
-                    </p>
-                    <p className="text-zinc-300 leading-relaxed">
-                      Sistem operasi Android <strong>memblokir akses USB capture card dari Google Chrome</strong> untuk alasan keamanan. Browser hanya bisa membaca kamera depan/belakang bawaan.
-                    </p>
-                    <div className="border-t border-amber-500/20 pt-1.5 space-y-1.5">
-                      <p className="font-semibold text-amber-300">2 Cara Menggunakan Tablet:</p>
-                      <ol className="list-decimal list-inside space-y-1 text-zinc-300">
-                        <li>
-                          <strong>Cara Terbaik (Spacedesk):</strong> Colok Sony A6000 ke PC/Laptop (di PC sudah terbukti jalan full frame). Install <em>Spacedesk</em> agar tablet jadi monitor layar sentuh PC. Pengunjung menekan tablet, kamera diproses di PC!
-                        </li>
-                        <li>
-                          <strong>Stream via Aplikasi:</strong> Buka aplikasi <em>USB Camera</em> di tablet &rarr; aktifkan <em>IP Camera Server</em> &rarr; masukkan linknya di tombol <em>IP / Android</em> di atas.
-                        </li>
-                      </ol>
-                    </div>
-                  </div>
-                )}
-              </div>
+          /* Lightweight status badge only. Camera switching lives in Settings so
+             the kiosk page does not re-render a heavy dropdown while the video
+             stream is live. */
+          <div
+            className={`flex items-center gap-2 rounded-full backdrop-blur-md border px-3 py-1 text-[11px] font-mono tracking-wide shadow-lg ${
+              currentDevice?.isHdmiCapture
+                ? 'bg-violet-950/80 border-violet-500/40 text-violet-200'
+                : 'bg-zinc-950/85 border-white/20 text-zinc-200'
+            }`}
+            title="Ganti kamera di menu Pengaturan"
+          >
+            {isIpStreamMode ? (
+              <Wifi className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+            ) : currentDevice?.isHdmiCapture ? (
+              <Usb className="h-3.5 w-3.5 shrink-0 text-violet-400" />
+            ) : (
+              <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
             )}
+            <span className="max-w-[150px] truncate font-medium">
+              {isIpStreamMode
+                ? 'IP Stream'
+                : currentDevice
+                  ? currentDevice.label
+                  : 'Kamera Internal'}
+            </span>
           </div>
         )}
 
         {/* Top Right Action Buttons */}
         <div className="flex items-center gap-1.5 pointer-events-auto">
-          {/* Quick cycle camera button */}
-          {hasMultipleDevices && onCycleCamera && !isSessionRunning && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onCycleCamera}
-              title="Ganti ke Kamera Berikutnya (Depan / Belakang / HDMI)"
-              className="h-8 w-8 rounded-lg border-white/15 bg-zinc-950/80 backdrop-blur-md text-white hover:bg-zinc-800 hover:text-white cursor-pointer"
-            >
-              <SwitchCamera className="h-4 w-4" />
-            </Button>
-          )}
-
           <Button
             variant="outline"
             size="icon"

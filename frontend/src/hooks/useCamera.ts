@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { type FilterKey, FILTERS } from '@/lib/render'
+import { type FilterKey, FILTER_SMOOTHING, FILTER_GRADES } from '@/lib/render'
+import { processImageData } from '@/lib/beauty'
 
 export interface VideoDevice {
   deviceId: string
@@ -309,24 +310,44 @@ export function useCamera() {
     const vw = video.videoWidth || 1280
     const vh = video.videoHeight || 720
 
+    // Stage 1: draw the raw frame. Colour work happens on pixels afterwards so
+    // the skin-smoothing mask and the grade see the un-mirrored source.
+    const raw = document.createElement('canvas')
+    raw.width = vw
+    raw.height = vh
+    const rawCtx = raw.getContext('2d', { willReadFrequently: true })
+    if (!rawCtx) return null
+    rawCtx.drawImage(video, 0, 0, vw, vh)
+
+    const smoothing = FILTER_SMOOTHING[activeFilter]
+    const grade = FILTER_GRADES[activeFilter]
+
     const canvas = document.createElement('canvas')
     canvas.width = vw
     canvas.height = vh
-
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
 
+    if (smoothing > 0.001 || grade) {
+      const imageData = rawCtx.getImageData(0, 0, vw, vh)
+      processImageData(imageData, { smoothing, grade })
+      ctx.putImageData(imageData, 0, 0)
+    } else {
+      ctx.drawImage(raw, 0, 0)
+    }
+
     if (isMirrored) {
-      ctx.translate(vw, 0)
-      ctx.scale(-1, 1)
+      const mirrored = document.createElement('canvas')
+      mirrored.width = vw
+      mirrored.height = vh
+      const mCtx = mirrored.getContext('2d')
+      if (!mCtx) return canvas
+      mCtx.translate(vw, 0)
+      mCtx.scale(-1, 1)
+      mCtx.drawImage(canvas, 0, 0)
+      return mirrored
     }
 
-    const filterCSS = FILTERS[activeFilter]
-    if (filterCSS && filterCSS !== 'none') {
-      ctx.filter = filterCSS
-    }
-
-    ctx.drawImage(video, 0, 0, vw, vh)
     return canvas
   }, [isMirrored, activeFilter])
 

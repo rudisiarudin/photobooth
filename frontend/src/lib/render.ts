@@ -1,3 +1,5 @@
+import type { ColorGrade } from '@/lib/beauty'
+
 export type ThemeKey =
   | 'dark'
   | 'cream'
@@ -73,41 +75,215 @@ export type FilterKey =
   | 'haze'
   | 'vivid'
 
-export const FILTERS: Record<FilterKey, string> = {
-  normal:    'none',
-  bw:        'grayscale(100%) contrast(115%)',
-  noir:      'grayscale(100%) contrast(145%) brightness(95%)',
-  vintage:   'sepia(50%) contrast(95%) brightness(105%)',
-  kodak:     'sepia(25%) contrast(110%) saturate(120%) brightness(102%)',
-  fuji:      'contrast(105%) saturate(90%) hue-rotate(-5deg) brightness(105%)',
-  cinematic: 'contrast(115%) saturate(115%) hue-rotate(10deg) brightness(98%)',
-  glow:      'brightness(112%) contrast(104%) saturate(110%)',
-  pastel:    'brightness(118%) contrast(95%) saturate(105%)',
-  cyber:     'contrast(125%) saturate(135%) hue-rotate(280deg)',
-  lomo:      'contrast(150%) saturate(110%) brightness(90%)',
-  warm:      'sepia(35%) saturate(130%) brightness(108%) hue-rotate(-15deg)',
-  cold:      'saturate(80%) brightness(105%) hue-rotate(195deg) contrast(108%)',
-  haze:      'brightness(115%) contrast(88%) saturate(75%) opacity(0.92)',
-  vivid:     'saturate(180%) contrast(110%) brightness(103%)',
+/**
+ * Skin-smoothing amount baked into the captured frame, per filter.
+ * 0 disables smoothing entirely. Portrait-style looks sit around 0.5–0.75;
+ * heavy stylised looks (noir, cyber) stay near 0 so they don't look plastic.
+ */
+export const FILTER_SMOOTHING: Record<FilterKey, number> = {
+  normal:    0.00,
+  bw:        0.35,
+  noir:      0.20,
+  vintage:   0.45,
+  kodak:     0.55,
+  fuji:      0.65,
+  cinematic: 0.50,
+  glow:      0.70,
+  pastel:    0.65,
+  cyber:     0.15,
+  lomo:      0.40,
+  warm:      0.60,
+  cold:      0.50,
+  haze:      0.55,
+  vivid:     0.45,
 }
 
-export const FILTER_LABELS: Record<FilterKey, string> = {
-  normal:    'Natural',
-  bw:        'Classic B&W',
-  noir:      'Dramatic Noir',
-  vintage:   'Vintage 90s',
-  kodak:     'Kodak Portra',
-  fuji:      'Fujifilm Chrome',
-  cinematic: 'Teal & Orange',
-  glow:      'Korean Glow',
-  pastel:    'Tokyo Pastel',
-  cyber:     'Cyber Violet',
-  lomo:      'Lomo Effect',
-  warm:      'Golden Hour',
-  cold:      'Arctic Blue',
-  haze:      'Film Haze',
-  vivid:     'Vivid Pop',
+/** Colour-grade look paired with each filter (see lib/beauty.ts). */
+export const FILTER_GRADES: Record<FilterKey, ColorGrade | null> = {
+  normal:    null,
+  // Moon — clean B&W with a gentle S-curve.
+  bw: {
+    contrast: 0.18, saturation: 0, temperature: 0.05, tint: 0,
+    lift: [0.02, 0.02, 0.03], gamma: [1, 1, 1], gain: [1, 1, 1.02],
+    shadowTint: [0, 0, 0.01], highlightTint: [0, 0, 0], splitStrength: 0.3,
+    monochrome: 1,
+  },
+  // Noir — crushed blacks, cold steel shadows.
+  noir: {
+    contrast: 0.42, saturation: 0, temperature: -0.10, tint: 0,
+    lift: [-0.02, -0.02, 0], gamma: [1.08, 1.08, 1.12], gain: [0.96, 0.96, 1],
+    shadowTint: [-0.01, 0, 0.03], highlightTint: [0, 0, 0.01], splitStrength: 0.6,
+    monochrome: 1,
+  },
+  // Reyes — dusty faded beige, lifted shadows.
+  vintage: {
+    contrast: -0.10, saturation: 0.72, temperature: 0.16, tint: 0.04,
+    lift: [0.07, 0.06, 0.05], gamma: [0.95, 0.97, 1.02], gain: [1.02, 1, 0.96],
+    shadowTint: [0.03, 0.02, 0], highlightTint: [0.03, 0.01, -0.01], splitStrength: 0.5,
+  },
+  // Juno — punchy warm, the classic "rich" Instagram look.
+  kodak: {
+    contrast: 0.20, saturation: 1.18, temperature: 0.14, tint: -0.02,
+    lift: [0.03, 0.02, 0.02], gamma: [1, 1.02, 1.05], gain: [1.04, 1.01, 0.98],
+    shadowTint: [0.01, 0, -0.01], highlightTint: [0.03, 0.01, -0.01], splitStrength: 0.45,
+  },
+  // Aden — soft pastel warmth, hazy blacks.
+  fuji: {
+    contrast: -0.06, saturation: 0.96, temperature: 0.20, tint: 0.08,
+    lift: [0.08, 0.07, 0.07], gamma: [0.98, 1, 1.04], gain: [1.02, 1, 1],
+    shadowTint: [0.02, 0.01, 0.02], highlightTint: [0.03, 0.02, 0], splitStrength: 0.35,
+  },
+  // Clarendon — teal & orange, the most "cinematic" of the set.
+  cinematic: {
+    contrast: 0.24, saturation: 1.12, temperature: 0.06, tint: 0,
+    lift: [-0.01, 0, 0.03], gamma: [1, 1.01, 1.02], gain: [1.03, 1.01, 0.98],
+    shadowTint: [-0.02, 0.01, 0.05], highlightTint: [0.05, 0.02, -0.02], splitStrength: 0.85,
+  },
+  // Lark — bright, airy, slightly cool whites.
+  glow: {
+    contrast: -0.04, saturation: 1.05, temperature: -0.05, tint: 0.04,
+    lift: [0.06, 0.06, 0.07], gamma: [1.01, 1, 0.99], gain: [1, 1.01, 1.02],
+    shadowTint: [0, 0.01, 0.02], highlightTint: [0.02, 0.02, 0.02], splitStrength: 0.4,
+  },
+  // Gingham — faded, low-contrast, gently blue.
+  pastel: {
+    contrast: -0.14, saturation: 0.85, temperature: -0.02, tint: 0.06,
+    lift: [0.09, 0.09, 0.10], gamma: [0.97, 0.99, 1.02], gain: [0.99, 1, 1.02],
+    shadowTint: [0, 0.01, 0.03], highlightTint: [0.01, 0.02, 0.03], splitStrength: 0.3,
+  },
+  // Cyber — magenta/cyan push, heavy stylisation so little smoothing.
+  cyber: {
+    contrast: 0.30, saturation: 1.45, temperature: -0.10, tint: 0.18,
+    lift: [0.04, -0.01, 0.06], gamma: [1.02, 0.98, 1.04], gain: [1.02, 0.98, 1.06],
+    shadowTint: [0.02, -0.01, 0.05], highlightTint: [0.03, 0, 0.04], splitStrength: 0.75,
+  },
+  // X-Pro II — muted greens, slight vignette-ish desaturation at the edges.
+  lomo: {
+    contrast: 0.16, saturation: 0.88, temperature: 0.04, tint: -0.10,
+    lift: [0.04, 0.05, 0.02], gamma: [0.99, 1.01, 0.97], gain: [1, 0.99, 1.01],
+    shadowTint: [0, 0.02, -0.01], highlightTint: [0.02, 0.01, 0], splitStrength: 0.4,
+  },
+  // Golden — warm, glowing skin.
+  warm: {
+    contrast: 0.10, saturation: 1.15, temperature: 0.24, tint: 0.02,
+    lift: [0.06, 0.04, 0.02], gamma: [1, 1.02, 1.06], gain: [1.05, 1.01, 0.95],
+    shadowTint: [0.02, 0, -0.01], highlightTint: [0.05, 0.02, -0.01], splitStrength: 0.6,
+  },
+  // Arctic — cool blue, clean whites.
+  cold: {
+    contrast: 0.14, saturation: 0.95, temperature: -0.22, tint: -0.04,
+    lift: [0.01, 0.03, 0.06], gamma: [1.03, 1.01, 0.98], gain: [0.97, 1, 1.05],
+    shadowTint: [-0.01, 0, 0.04], highlightTint: [0, 0.01, 0.03], splitStrength: 0.55,
+  },
+  // Nashville — soft warm haze, low contrast.
+  haze: {
+    contrast: -0.16, saturation: 0.80, temperature: 0.18, tint: 0.02,
+    lift: [0.10, 0.09, 0.07], gamma: [0.95, 0.98, 1.04], gain: [1.02, 1, 0.97],
+    shadowTint: [0.03, 0.02, 0], highlightTint: [0.04, 0.02, -0.01], splitStrength: 0.45,
+  },
+  // Perpetua — vivid, slightly green life, punchy.
+  vivid: {
+    contrast: 0.22, saturation: 1.40, temperature: 0.02, tint: -0.06,
+    lift: [0.01, 0.02, 0], gamma: [1, 1, 1], gain: [1.04, 1.06, 1.01],
+    shadowTint: [-0.01, 0.02, 0], highlightTint: [0.02, 0.03, 0.01], splitStrength: 0.5,
+  },
 }
+
+export interface FilterPreset {
+  /** CSS filter chain applied to the live preview AND baked into the captured frame. */
+  css: string
+  /** Human-readable name shown in the UI. */
+  label: string
+  /** Optional single dominant tint. Used for the UI swatch background. */
+  tint?: string
+}
+
+/**
+ * Filter recipes are ordered `brightness -> contrast -> saturate -> hue-rotate -> grayscale -> sepia`
+ * so results stay predictable: colour-shaping first, then the destructive greyscale/sepia passes.
+ * Values follow the published Instagram filter recipes (Clarendon, Gingham, Moon, Lark, Reyes,
+ * Juno, Ludwig, Aden, Perpetua, X-Pro II) and common TikTok looks.
+ */
+export const FILTERS: Record<FilterKey, FilterPreset> = {
+  normal: {
+    css: 'none',
+    label: 'Natural',
+  },
+  bw: {
+    css: 'grayscale(1) contrast(1.1) brightness(1.05)',
+    label: 'Moon',
+    tint: '#4a4a4a',
+  },
+  noir: {
+    css: 'grayscale(1) contrast(1.35) brightness(0.92)',
+    label: 'Noir',
+    tint: '#1a1a1a',
+  },
+  vintage: {
+    css: 'sepia(0.22) brightness(1.1) contrast(0.85) saturate(0.75)',
+    label: 'Reyes',
+    tint: '#b89b6a',
+  },
+  kodak: {
+    css: 'sepia(0.15) contrast(1.1) saturate(1.3) brightness(1.04)',
+    label: 'Juno',
+    tint: '#d4a574',
+  },
+  fuji: {
+    css: 'brightness(1.08) contrast(0.92) saturate(1.18) hue-rotate(-8deg)',
+    label: 'Aden',
+    tint: '#e8b4a0',
+  },
+  cinematic: {
+    css: 'contrast(1.2) saturate(1.35) brightness(0.96)',
+    label: 'Clarendon',
+    tint: '#2c5f7c',
+  },
+  glow: {
+    css: 'brightness(1.1) contrast(0.95) saturate(1.15)',
+    label: 'Lark',
+    tint: '#7fb3a0',
+  },
+  pastel: {
+    css: 'brightness(1.1) hue-rotate(-10deg) sepia(0.04) contrast(0.95)',
+    label: 'Gingham',
+    tint: '#dce8f0',
+  },
+  cyber: {
+    css: 'saturate(1.6) contrast(1.2) hue-rotate(280deg) brightness(0.95)',
+    label: 'Cyber',
+    tint: '#8b3fd4',
+  },
+  lomo: {
+    css: 'contrast(1.3) saturate(1.1) brightness(0.92) sepia(0.08)',
+    label: 'X-Pro II',
+    tint: '#5c7a4a',
+  },
+  warm: {
+    css: 'brightness(1.1) saturate(1.3) hue-rotate(-10deg)',
+    label: 'Golden',
+    tint: '#e8a33d',
+  },
+  cold: {
+    css: 'saturate(0.9) contrast(1.1) hue-rotate(195deg) brightness(1.05)',
+    label: 'Arctic',
+    tint: '#6ba8c9',
+  },
+  haze: {
+    css: 'sepia(0.2) brightness(1.15) contrast(0.8) saturate(0.7)',
+    label: 'Nashville',
+    tint: '#b8a88a',
+  },
+  vivid: {
+    css: 'saturate(1.7) contrast(1.12) brightness(1.03)',
+    label: 'Perpetua',
+    tint: '#2e9e5b',
+  },
+}
+
+export const FILTER_LABELS: Record<FilterKey, string> = Object.fromEntries(
+  Object.entries(FILTERS).map(([key, preset]) => [key, preset.label])
+) as Record<FilterKey, string>
 
 function getDateLabel(config: EventConfig): string {
   return config.date || new Date().toLocaleDateString('id-ID', {

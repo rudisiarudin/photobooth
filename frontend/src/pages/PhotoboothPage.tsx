@@ -277,14 +277,9 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
           retakingPoseIndex={retakingPoseIndex}
           videoDevices={videoDevices}
           selectedDeviceId={selectedDeviceId}
-          onSwitchCamera={switchCamera}
-          onCycleCamera={cycleToNextCamera}
           onRefreshDevices={refreshDevices}
           isExternalCamera={videoDevices.find((d) => d.deviceId === selectedDeviceId)?.isHdmiCapture ?? false}
           isIpStreamMode={isIpStreamMode}
-          ipStreamUrl={ipStreamUrl}
-          onConnectIpStream={connectIpStream}
-          onDisconnectIpStream={disconnectIpStream}
         />
       </div>
 
@@ -476,6 +471,18 @@ export const PhotoboothPage: React.FC<PhotoboothPageProps> = ({
         open={onOpenSettings}
         onOpenChange={setOpenSettings}
         config={eventConfig}
+        videoDevices={videoDevices}
+        selectedDeviceId={selectedDeviceId}
+        isMirrored={isMirrored}
+        isCapturing={isCapturing}
+        onSwitchCamera={switchCamera}
+        onRefreshDevices={refreshDevices}
+        onCycleCamera={cycleToNextCamera}
+        onToggleMirror={() => setIsMirrored(!isMirrored)}
+        isIpStreamMode={isIpStreamMode}
+        ipStreamUrl={ipStreamUrl}
+        onConnectIpStream={connectIpStream}
+        onDisconnectIpStream={disconnectIpStream}
         onSave={(newCfg) => {
           setEventConfig(newCfg)
           if (resultDataUrl) {

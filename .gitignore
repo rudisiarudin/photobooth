@@ -10,6 +10,8 @@ dist
 *.pem
 key.pem
 cert.pem
+# Local backups of the generated cert/key pair
+cert-backup/
 
 # Captures (local photos)
 captures/*
